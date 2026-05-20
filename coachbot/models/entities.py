@@ -77,7 +77,9 @@ class WorkoutExercise:
     reps: str
     rest_seconds: int = 60
     video_url: Optional[str] = None
+    telegram_file_id: Optional[str] = None
     requires_video: bool = False
+    state: str = "pending"  # pending, waiting_video, completed
 
 
 @dataclass

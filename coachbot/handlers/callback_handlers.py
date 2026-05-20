@@ -58,6 +58,8 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         
         session, exercise, total = result
         current_num = session.current_exercise_index + 1
+        athlete_id = callback.from_user.id
+        athlete_username = callback.from_user.username or f"user_{athlete_id}"
         
         # Check if this is the last exercise
         if current_num == total:
@@ -71,29 +73,35 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
                 "Тренер получил уведомление о завершении сессии."
             )
             await callback.answer("🏁 Тренировка завершена!", show_alert=True)
-            logger.info(f"Athlete {callback.from_user.id} completed workout {session_id}")
+            logger.info(f"Athlete {athlete_id} completed workout {session_id}")
+            return
+        
+        # Check exercise state for video flow
+        if exercise.state == "waiting_video":
+            # Already waiting for video, ignore duplicate clicks
+            await callback.answer("📹 Ожидаем видео", show_alert=True)
             return
         
         # Not last exercise - check if video required
-        if exercise.requires_video:
-            # Show video request message
+        if exercise.requires_video and exercise.state == "pending":
+            # Update state to waiting_video
+            workout_service.update_exercise_state(session_id, session.current_exercise_index, "waiting_video")
+            
+            # Show video request message (edit current message)
             video_request_text = (
                 f"📹 Отправь видео выполнения упражнения\n\n"
-                f"{exercise.title}"
+                f"🏃 {exercise.title}\n\n"
+                f"Поддерживаются:\n"
+                f"• Видео Telegram\n"
+                f"• Файл\n"
+                f"• Ссылка"
             )
             
-            from keyboards.inline_keyboards import workout_session_keyboard
-            keyboard = workout_session_keyboard(
-                session_id=session.session_id,
-                current_index=session.current_exercise_index,
-                total_exercises=total,
-            )
-            
-            await callback.message.edit_text(video_request_text, reply_markup=keyboard)
+            # Remove keyboard while waiting for video
+            await callback.message.edit_text(video_request_text)
             await callback.answer("📹 Ожидаем видео", show_alert=True)
             
-            # Notify admin about video request
-            athlete_username = callback.from_user.username or f"user_{callback.from_user.id}"
+            # Notify admin about video request (only once)
             try:
                 await callback.bot.send_message(
                     chat_id=config.ADMIN_ID,
@@ -101,30 +109,16 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
                         f"📹 Запрос видео\n\n"
                         f"👤 Игрок: @{athlete_username}\n"
                         f"🏃 Упражнение: {exercise.title}\n"
-                        f"Тренировка: {session.title}"
+                        f"🏋️ Тренировка: {session.title}"
                     )
                 )
             except Exception as e:
                 logger.error(f"Failed to send video notification to admin: {e}")
             
-            # Auto-advance after showing video request
-            next_result = workout_service.next_exercise(session_id)
-            if next_result:
-                next_session, next_exercise, next_total = next_result
-                next_num = next_session.current_exercise_index + 1
-                
-                next_exercise_text = format_exercise_card(next_exercise, next_num, next_total)
-                
-                next_keyboard = workout_session_keyboard(
-                    session_id=next_session.session_id,
-                    current_index=next_session.current_exercise_index,
-                    total_exercises=next_total,
-                )
-                
-                await callback.message.answer(next_exercise_text, reply_markup=next_keyboard)
+            # Do NOT auto-advance yet - wait for media
             return
         
-        # Normal exercise - just advance to next
+        # Normal exercise or already completed video requirement - just advance to next
         next_result = workout_service.next_exercise(session_id)
         if not next_result:
             await callback.answer("Ошибка перехода к следующему упражнению.", show_alert=True)
@@ -267,7 +261,14 @@ def format_exercise_card(exercise, current_num: int, total: int) -> str:
         f"⏱ Отдых: {exercise.rest_seconds} сек",
     ]
     
-    if exercise.video_url:
+    # Show embedded video if available, otherwise show URL
+    if exercise.telegram_file_id:
+        lines.extend([
+            "",
+            f"📹 Видео:",
+            f"(Telegram видео)",
+        ])
+    elif exercise.video_url:
         lines.extend([
             "",
             f"📹 Видео:",
