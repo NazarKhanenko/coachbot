@@ -22,24 +22,30 @@ class WorkoutService:
         exercises = [
             WorkoutExercise(
                 title="Sprint A-Skips",
-                description="High knee skips focusing on explosive drive. Keep your core tight and arms pumping.",
+                description="Разогрев и активация спринтовой механики.",
                 sets=3,
-                reps="20m",
-                rest_seconds=60,
+                reps="20 м",
+                rest_seconds=45,
+                video_url="https://example.com/sprint-a-skips",
+                requires_video=False,
             ),
             WorkoutExercise(
                 title="Lateral Bounds",
-                description="Side-to-side jumps landing softly on one foot. Focus on control and distance.",
+                description="Боковые прыжки с акцентом на контроль и расстояние.",
                 sets=3,
-                reps="10 each leg",
+                reps="10 на ногу",
                 rest_seconds=60,
+                video_url="https://example.com/lateral-bounds",
+                requires_video=True,
             ),
             WorkoutExercise(
                 title="Broad Jumps",
-                description="Standing long jumps for maximum distance. Swing arms and land softly.",
+                description="Прыжки в длину с места на максимальную дистанцию.",
                 sets=4,
-                reps="5 reps",
+                reps="5 повторений",
                 rest_seconds=90,
+                video_url=None,
+                requires_video=False,
             ),
         ]
 
@@ -129,9 +135,7 @@ class WorkoutService:
         Returns the formatted notification message.
         """
         return (
-            f"🆘 **Help Request**\n\n"
-            f"Athlete: {athlete_username} (ID: {athlete_id})\n"
-            f"Workout: {session.title}\n"
-            f"Exercise: {exercise.title}\n\n"
-            f"The athlete needs assistance with this exercise."
+            f"🆘 Запрос помощи\n\n"
+            f"👤 Игрок: @{athlete_username}\n"
+            f"🏃 Упражнение: {exercise.title}"
         )

@@ -77,6 +77,7 @@ class WorkoutExercise:
     reps: str
     rest_seconds: int = 60
     video_url: Optional[str] = None
+    requires_video: bool = False
 
 
 @dataclass
