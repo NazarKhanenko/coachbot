@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from coachbot.models.entities import Athlete
+from models.entities import Athlete
 
 
 class AthleteStorage:

@@ -7,7 +7,7 @@ Will be replaced with a real database in production.
 
 from typing import Optional
 
-from coachbot.models.entities import Athlete, Coach, ExerciseSession, Workout
+from models.entities import Athlete, Coach, ExerciseSession, Workout
 
 
 class InMemoryStorage:
