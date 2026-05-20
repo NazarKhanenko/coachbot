@@ -44,12 +44,11 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         session = workout_service.create_demo_workout(athlete_id=user_id)
 
         await message.answer(
-            f"✅ Demo workout created!\n\n"
-            f"Athlete ID: {user_id}\n"
-            f"Session ID: {session.session_id}\n"
-            f"Title: {session.title}\n"
-            f"Exercises: {len(session.exercises)}\n\n"
-            f"The athlete can now use /workout to start."
+            f"✅ Тренировка создана\n\n"
+            f"Спортсмен: {user_id}\n"
+            f"Название: {session.title}\n"
+            f"Упражнений: {len(session.exercises)}\n\n"
+            f"Спортсмен может начать с /workout"
         )
 
     @admin_router.message(Command("add_athlete"))

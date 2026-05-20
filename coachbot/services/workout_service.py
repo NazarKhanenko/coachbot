@@ -27,7 +27,9 @@ class WorkoutService:
                 reps="20 м",
                 rest_seconds=45,
                 video_url="https://example.com/sprint-a-skips",
+                telegram_file_id=None,
                 requires_video=False,
+                state="pending",
             ),
             WorkoutExercise(
                 title="Lateral Bounds",
@@ -36,7 +38,9 @@ class WorkoutService:
                 reps="10 на ногу",
                 rest_seconds=60,
                 video_url="https://example.com/lateral-bounds",
+                telegram_file_id=None,
                 requires_video=True,
+                state="pending",
             ),
             WorkoutExercise(
                 title="Broad Jumps",
@@ -45,7 +49,9 @@ class WorkoutService:
                 reps="5 повторений",
                 rest_seconds=90,
                 video_url=None,
+                telegram_file_id=None,
                 requires_video=False,
+                state="pending",
             ),
         ]
 
@@ -137,5 +143,31 @@ class WorkoutService:
         return (
             f"🆘 Запрос помощи\n\n"
             f"👤 Игрок: @{athlete_username}\n"
-            f"🏃 Упражнение: {exercise.title}"
+            f"🏃 Упражнение: {exercise.title}\n"
+            f"🏋️ Тренировка: {session.title}"
+        )
+
+    def update_exercise_state(self, session_id: str, exercise_index: int, state: str) -> bool:
+        """Update the state of a specific exercise in a session."""
+        session = self.storage.get_session(session_id)
+        if not session:
+            return False
+        
+        if exercise_index < 0 or exercise_index >= len(session.exercises):
+            return False
+        
+        session.exercises[exercise_index].state = state
+        return True
+
+    def notify_video_submission(self, athlete_id: int, athlete_username: str,
+                                 session: WorkoutSession, exercise: WorkoutExercise) -> str:
+        """Generate video submission notification message for admin.
+        
+        Returns the formatted notification message.
+        """
+        return (
+            f"📹 Новое видео упражнения\n\n"
+            f"👤 Игрок: @{athlete_username}\n"
+            f"🏃 Упражнение: {exercise.title}\n"
+            f"🏋️ Тренировка: {session.title}"
         )
