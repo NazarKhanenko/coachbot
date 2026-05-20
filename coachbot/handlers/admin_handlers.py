@@ -9,10 +9,10 @@ from services.athlete_service import AthleteService
 admin_router = Router()
 
 
-def setup_admin_handlers(router: Router, athlete_service: AthleteService):
+def setup_admin_handlers(dp: Router, athlete_service: AthleteService):
     """Register admin handlers with the router."""
 
-    @router.message(Command("add_athlete"))
+    @admin_router.message(Command("add_athlete"))
     async def cmd_add_athlete(message: Message):
         """Add a new athlete: /add_athlete USER_ID DAYS"""
         if message.from_user.id != config.ADMIN_ID:
@@ -48,7 +48,7 @@ def setup_admin_handlers(router: Router, athlete_service: AthleteService):
             f"Expires: {athlete.subscription_expires_at.strftime('%Y-%m-%d %H:%M')}"
         )
 
-    @router.message(Command("remove_athlete"))
+    @admin_router.message(Command("remove_athlete"))
     async def cmd_remove_athlete(message: Message):
         """Remove an athlete: /remove_athlete USER_ID"""
         if message.from_user.id != config.ADMIN_ID:
@@ -71,7 +71,7 @@ def setup_admin_handlers(router: Router, athlete_service: AthleteService):
         else:
             await message.answer(f"❌ Athlete {user_id} not found.")
 
-    @router.message(Command("list_athletes"))
+    @admin_router.message(Command("list_athletes"))
     async def cmd_list_athletes(message: Message):
         """List all athletes with their status."""
         if message.from_user.id != config.ADMIN_ID:
