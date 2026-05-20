@@ -11,14 +11,16 @@ Architecture:
 - media/: Static media files
 """
 
+import asyncio
 import logging
 
-from config import get_config
+from aiogram import Bot, Dispatcher
 
+from config import get_config
 from handlers import setup_handlers
 
 
-def create_bot() -> None:
+async def create_bot() -> None:
     """Initialize and run the bot."""
     config = get_config()
 
@@ -31,19 +33,28 @@ def create_bot() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting Telegram Coaching Bot...")
 
-    # TODO: Initialize Aiogram bot and dispatcher here
-    # from aiogram import Bot, Dispatcher
-    # bot = Bot(token=config.telegram_bot_token)
-    # dp = Dispatcher()
+    # Initialize Aiogram bot and dispatcher
+    bot = Bot(token=config.telegram_bot_token)
+    dp = Dispatcher()
 
     # Setup handlers
-    # setup_handlers(dp)
+    setup_handlers(dp)
 
-    # TODO: Start polling
-    # await dp.start_polling(bot)
+    logger.info("Bot initialized successfully. Starting polling...")
 
-    logger.info("Bot architecture initialized successfully.")
+    try:
+        # Start polling
+        await dp.start_polling(bot)
+    finally:
+        # Cleanup
+        await bot.session.close()
+        logger.info("Bot stopped.")
+
+
+def main() -> None:
+    """Entry point for the bot."""
+    asyncio.run(create_bot())
 
 
 if __name__ == "__main__":
-    create_bot()
+    main()
