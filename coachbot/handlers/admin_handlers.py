@@ -82,7 +82,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         )
 
         await message.answer(
-            f"✅ Athlete added!\n"
+            f"✅ Спортсмен добавлен\n"
             f"User ID: {athlete.telegram_id}\n"
             f"Subscription: {days} days\n"
             f"Expires: {athlete.subscription_expires_at.strftime('%Y-%m-%d %H:%M')}"
@@ -107,7 +107,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             return
 
         if athlete_service.remove_athlete(user_id):
-            await message.answer(f"✅ Athlete {user_id} removed (deactivated).")
+            await message.answer(f"⛔ Доступ спортсмена отключён (ID: {user_id}).")
         else:
             await message.answer(f"❌ Athlete {user_id} not found.")
 

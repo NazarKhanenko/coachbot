@@ -11,26 +11,20 @@ def workout_session_keyboard(session_id: str, current_index: int, total_exercise
     """Build navigation keyboard for workout session exercises (MVP)."""
     buttons = []
 
-    # Navigation row
+    # Row 1: Back | Done
     nav_row = []
     
     # Previous exercise
     if current_index > 0:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Previous", callback_data=f"workout_prev_{session_id}"))
+        nav_row.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"workout_prev_{session_id}"))
     
-    # Next exercise
-    if current_index < total_exercises - 1:
-        nav_row.append(InlineKeyboardButton(text="Next ➡️", callback_data=f"workout_next_{session_id}"))
+    # Done button (always present)
+    nav_row.append(InlineKeyboardButton(text="✅ Выполнил", callback_data=f"workout_done_{session_id}"))
     
-    if nav_row:
-        buttons.append(nav_row)
+    buttons.append(nav_row)
 
-    # Action row
-    action_row = [
-        InlineKeyboardButton(text="✅ Completed", callback_data=f"workout_complete_{session_id}"),
-        InlineKeyboardButton(text="🆘 Need Help", callback_data=f"workout_help_{session_id}"),
-    ]
-    buttons.append(action_row)
+    # Row 2: Help
+    buttons.append([InlineKeyboardButton(text="🆘 Нужна помощь", callback_data=f"workout_help_{session_id}")])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

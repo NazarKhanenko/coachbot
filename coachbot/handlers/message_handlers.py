@@ -35,8 +35,7 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
         
         if not is_admin and not athlete_service.has_access(user_id):
             await message.answer(
-                "⛔ Access not granted.\n\n"
-                "Please contact your coach to get access."
+                "🔒 Доступ к системе не активирован."
             )
             logger.info(f"Unauthorized user {user_id} attempted /workout")
             return
@@ -45,22 +44,16 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
         result = workout_service.get_current_exercise(user_id)
         if not result:
             await message.answer(
-                "📭 No active workout session.\n\n"
-                "Ask your coach to create a workout for you."
+                "❌ У тебя нет активной тренировки."
             )
             return
 
         session, exercise, total = result
         current_num = session.current_exercise_index + 1
 
-        # Format exercise message
-        exercise_text = (
-            f"Exercise {current_num}/{total}\n\n"
-            f"**{exercise.title}**\n\n"
-            f"{exercise.description}\n\n"
-            f"Sets: {exercise.sets} | Reps: {exercise.reps}\n"
-            f"Rest: {exercise.rest_seconds}s"
-        )
+        # Format exercise card with clean layout
+        from handlers.callback_handlers import format_exercise_card
+        exercise_text = format_exercise_card(exercise, current_num, total)
 
         keyboard = workout_session_keyboard(
             session_id=session.session_id,
@@ -68,7 +61,7 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
             total_exercises=total,
         )
 
-        await message.answer(exercise_text, parse_mode="Markdown", reply_markup=keyboard)
+        await message.answer(exercise_text, reply_markup=keyboard)
         logger.info(f"Athlete {user_id} viewed workout exercise {current_num}/{total}")
 
     @message_router.message(Command("start"))

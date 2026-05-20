@@ -27,19 +27,14 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         
         result = workout_service.previous_exercise(session_id)
         if not result:
-            await callback.answer("Already at first exercise.", show_alert=True)
+            await callback.answer("Уже первое упражнение.", show_alert=True)
             return
         
         session, exercise, total = result
         current_num = session.current_exercise_index + 1
         
-        exercise_text = (
-            f"Exercise {current_num}/{total}\n\n"
-            f"**{exercise.title}**\n\n"
-            f"{exercise.description}\n\n"
-            f"Sets: {exercise.sets} | Reps: {exercise.reps}\n"
-            f"Rest: {exercise.rest_seconds}s"
-        )
+        # Format exercise card with clean layout
+        exercise_text = format_exercise_card(exercise, current_num, total)
         
         from keyboards.inline_keyboards import workout_session_keyboard
         keyboard = workout_session_keyboard(
@@ -48,60 +43,107 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             total_exercises=total,
         )
         
-        await callback.message.edit_text(exercise_text, parse_mode="Markdown", reply_markup=keyboard)
+        await callback.message.edit_text(exercise_text, reply_markup=keyboard)
         await callback.answer()
 
-    @callback_router.callback_query(lambda c: c.data.startswith("workout_next_"))
-    async def handle_workout_next(callback: types.CallbackQuery) -> None:
-        """Handle next exercise navigation."""
-        session_id = callback.data.replace("workout_next_", "")
-        
-        result = workout_service.next_exercise(session_id)
-        if not result:
-            await callback.answer("Already at last exercise.", show_alert=True)
-            return
-        
-        session, exercise, total = result
-        current_num = session.current_exercise_index + 1
-        
-        exercise_text = (
-            f"Exercise {current_num}/{total}\n\n"
-            f"**{exercise.title}**\n\n"
-            f"{exercise.description}\n\n"
-            f"Sets: {exercise.sets} | Reps: {exercise.reps}\n"
-            f"Rest: {exercise.rest_seconds}s"
-        )
-        
-        from keyboards.inline_keyboards import workout_session_keyboard
-        keyboard = workout_session_keyboard(
-            session_id=session.session_id,
-            current_index=session.current_exercise_index,
-            total_exercises=total,
-        )
-        
-        await callback.message.edit_text(exercise_text, parse_mode="Markdown", reply_markup=keyboard)
-        await callback.answer()
-
-    @callback_router.callback_query(lambda c: c.data.startswith("workout_complete_"))
-    async def handle_workout_complete(callback: types.CallbackQuery) -> None:
-        """Handle workout completion."""
-        session_id = callback.data.replace("workout_complete_", "")
+    @callback_router.callback_query(lambda c: c.data.startswith("workout_done_"))
+    async def handle_workout_done(callback: types.CallbackQuery) -> None:
+        """Handle exercise marked as done - auto advance or complete workout."""
+        session_id = callback.data.replace("workout_done_", "")
         
         result = workout_service.get_current_exercise_by_session(session_id)
-        if result:
-            session, exercise, total = result
-            # Check if this is the last exercise
-            if session.current_exercise_index == total - 1:
-                workout_service.complete_workout(session_id)
-                await callback.message.edit_text(
-                    "🎉 **Workout completed!**\n\n"
-                    "Great job! Your coach will be notified of your completion."
-                )
-                await callback.answer("Workout completed!", show_alert=True)
-                return
+        if not result:
+            await callback.answer("Сессия не найдена.", show_alert=True)
+            return
         
-        # Not last exercise or session not found
-        await callback.answer("Complete all exercises first!", show_alert=True)
+        session, exercise, total = result
+        current_num = session.current_exercise_index + 1
+        
+        # Check if this is the last exercise
+        if current_num == total:
+            # Complete entire workout
+            workout_service.complete_workout(session_id)
+            
+            # Remove keyboard and show completion message
+            await callback.message.edit_text(
+                "🏁 Тренировка завершена\n\n"
+                "Отличная работа.\n"
+                "Тренер получил уведомление о завершении сессии."
+            )
+            await callback.answer("🏁 Тренировка завершена!", show_alert=True)
+            logger.info(f"Athlete {callback.from_user.id} completed workout {session_id}")
+            return
+        
+        # Not last exercise - check if video required
+        if exercise.requires_video:
+            # Show video request message
+            video_request_text = (
+                f"📹 Отправь видео выполнения упражнения\n\n"
+                f"{exercise.title}"
+            )
+            
+            from keyboards.inline_keyboards import workout_session_keyboard
+            keyboard = workout_session_keyboard(
+                session_id=session.session_id,
+                current_index=session.current_exercise_index,
+                total_exercises=total,
+            )
+            
+            await callback.message.edit_text(video_request_text, reply_markup=keyboard)
+            await callback.answer("📹 Ожидаем видео", show_alert=True)
+            
+            # Notify admin about video request
+            athlete_username = callback.from_user.username or f"user_{callback.from_user.id}"
+            try:
+                await callback.bot.send_message(
+                    chat_id=config.ADMIN_ID,
+                    text=(
+                        f"📹 Запрос видео\n\n"
+                        f"👤 Игрок: @{athlete_username}\n"
+                        f"🏃 Упражнение: {exercise.title}\n"
+                        f"Тренировка: {session.title}"
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Failed to send video notification to admin: {e}")
+            
+            # Auto-advance after showing video request
+            next_result = workout_service.next_exercise(session_id)
+            if next_result:
+                next_session, next_exercise, next_total = next_result
+                next_num = next_session.current_exercise_index + 1
+                
+                next_exercise_text = format_exercise_card(next_exercise, next_num, next_total)
+                
+                next_keyboard = workout_session_keyboard(
+                    session_id=next_session.session_id,
+                    current_index=next_session.current_exercise_index,
+                    total_exercises=next_total,
+                )
+                
+                await callback.message.answer(next_exercise_text, reply_markup=next_keyboard)
+            return
+        
+        # Normal exercise - just advance to next
+        next_result = workout_service.next_exercise(session_id)
+        if not next_result:
+            await callback.answer("Ошибка перехода к следующему упражнению.", show_alert=True)
+            return
+        
+        next_session, next_exercise, next_total = next_result
+        next_num = next_session.current_exercise_index + 1
+        
+        next_exercise_text = format_exercise_card(next_exercise, next_num, next_total)
+        
+        from keyboards.inline_keyboards import workout_session_keyboard
+        next_keyboard = workout_session_keyboard(
+            session_id=next_session.session_id,
+            current_index=next_session.current_exercise_index,
+            total_exercises=next_total,
+        )
+        
+        await callback.message.edit_text(next_exercise_text, reply_markup=next_keyboard)
+        await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data.startswith("workout_help_"))
     async def handle_workout_help(callback: types.CallbackQuery) -> None:
@@ -111,7 +153,7 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         # Get session info for help notification
         result = workout_service.get_current_exercise_by_session(session_id)
         if not result:
-            await callback.answer("Session not found.", show_alert=True)
+            await callback.answer("Сессия не найдена.", show_alert=True)
             return
         
         session, exercise, total = result
@@ -130,14 +172,14 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             await callback.bot.send_message(
                 chat_id=config.ADMIN_ID,
                 text=notification,
-                parse_mode="Markdown",
             )
         except Exception as e:
             logger.error(f"Failed to send help notification to admin: {e}")
-            await callback.answer("Could not notify coach. Please message directly.", show_alert=True)
+            await callback.answer("Не удалось отправить запрос тренеру.", show_alert=True)
             return
         
-        await callback.answer("Coach has been notified!", show_alert=True)
+        # Confirm to athlete
+        await callback.answer("🆘 Запрос отправлен тренеру.", show_alert=True)
         logger.info(f"Help request sent by athlete {athlete_id} for exercise {exercise.title}")
 
     @callback_router.callback_query(lambda c: c.data.startswith("workout_"))
@@ -147,9 +189,9 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         
         # TODO: Fetch workout details and show first block/exercise
         await callback.message.edit_text(
-            f"📋 Workout: {workout_id}\n\n"
-            "Loading exercises...\n\n"
-            "(Implementation pending)"
+            f"📋 Тренировка: {workout_id}\n\n"
+            f"Загрузка упражнений...\n\n"
+            f"(В разработке)"
         )
         await callback.answer()
 
@@ -161,7 +203,7 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         # exercise_index = parts[1]
         
         # TODO: Call ExerciseService.mark_exercise_done()
-        await callback.answer("✅ Exercise marked as done!", show_alert=True)
+        await callback.answer("✅ Упражнение выполнено!", show_alert=True)
 
     @callback_router.callback_query(lambda c: c.data.startswith("help_"))
     async def handle_exercise_help(callback: types.CallbackQuery) -> None:
@@ -171,7 +213,7 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         # exercise_index = parts[1]
         
         # TODO: Show help options (video upload, message)
-        await callback.answer("❓ Help requested. Coach will be notified.", show_alert=True)
+        await callback.answer("❓ Запрос помощи отправлен тренеру.", show_alert=True)
 
     @callback_router.callback_query(lambda c: c.data.startswith("confirm_add_"))
     async def handle_confirm_add_athlete(callback: types.CallbackQuery) -> None:
@@ -182,31 +224,59 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         # athlete_username = parts[1]
         
         # TODO: Call CoachService.add_athlete()
-        await callback.message.edit_text("✅ Athlete added successfully!")
+        await callback.message.edit_text("✅ Спортсмен добавлен")
         await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data == "cancel_add_athlete")
     async def handle_cancel_add_athlete(callback: types.CallbackQuery) -> None:
         """Handle cancellation of adding an athlete."""
-        await callback.message.edit_text("❌ Adding athlete cancelled.")
+        await callback.message.edit_text("❌ Добавление спортсмена отменено.")
         await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data.startswith("prev_block_"))
     async def handle_prev_block(callback: types.CallbackQuery) -> None:
         """Handle navigation to previous block."""
-        await callback.answer("Navigate to previous block (pending)")
+        await callback.answer("Переход к предыдущему блоку (в разработке)")
 
     @callback_router.callback_query(lambda c: c.data.startswith("next_block_"))
     async def handle_next_block(callback: types.CallbackQuery) -> None:
         """Handle navigation to next block."""
-        await callback.answer("Navigate to next block (pending)")
+        await callback.answer("Переход к следующему блоку (в разработке)")
 
     @callback_router.callback_query(lambda c: c.data.startswith("prev_ex_"))
     async def handle_prev_exercise(callback: types.CallbackQuery) -> None:
         """Handle navigation to previous exercise."""
-        await callback.answer("Navigate to previous exercise (pending)")
+        await callback.answer("Переход к предыдущему упражнению (в разработке)")
 
     @callback_router.callback_query(lambda c: c.data.startswith("next_ex_"))
     async def handle_next_exercise(callback: types.CallbackQuery) -> None:
         """Handle navigation to next exercise."""
-        await callback.answer("Navigate to next exercise (pending)")
+        await callback.answer("Переход к следующему упражнению (в разработке)")
+
+
+def format_exercise_card(exercise, current_num: int, total: int) -> str:
+    """Format exercise card with clean Telegram-friendly layout."""
+    lines = [
+        f"🏃 {exercise.title}",
+        "",
+        f"📋 Описание:",
+        f"{exercise.description}",
+        "",
+        f"🔁 Подходы: {exercise.sets}",
+        f"📈 Повторения: {exercise.reps}",
+        f"⏱ Отдых: {exercise.rest_seconds} сек",
+    ]
+    
+    if exercise.video_url:
+        lines.extend([
+            "",
+            f"📹 Видео:",
+            f"{exercise.video_url}",
+        ])
+    
+    lines.extend([
+        "",
+        f"Упражнение {current_num}/{total}",
+    ])
+    
+    return "\n".join(lines)
