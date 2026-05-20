@@ -68,6 +68,31 @@ class Exercise:
 
 
 @dataclass
+class WorkoutExercise:
+    """Represents an exercise within a workout session (MVP)."""
+
+    title: str
+    description: str
+    sets: int
+    reps: str
+    rest_seconds: int = 60
+    video_url: Optional[str] = None
+
+
+@dataclass
+class WorkoutSession:
+    """Tracks an athlete's active workout session (MVP)."""
+
+    session_id: str
+    athlete_id: int
+    title: str
+    exercises: list[WorkoutExercise] = field(default_factory=list)
+    current_exercise_index: int = 0
+    completed: bool = False
+    created_at: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass
 class Block:
     """Represents a block of exercises (e.g., Warm-up, Main Workout)."""
 

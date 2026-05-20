@@ -5,12 +5,52 @@ from aiogram.types import Message
 
 from config import config
 from services.athlete_service import AthleteService
+from services.workout_service import WorkoutService
 
 admin_router = Router()
 
 
-def setup_admin_handlers(dp: Router, athlete_service: AthleteService):
+def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_service: WorkoutService):
     """Register admin handlers with the router."""
+
+    @admin_router.message(Command("create_demo_workout"))
+    async def cmd_create_demo_workout(message: Message):
+        """Create a demo workout for an athlete: /create_demo_workout USER_ID"""
+        if message.from_user.id != config.ADMIN_ID:
+            await message.answer("⛔ Admin only command.")
+            return
+
+        args = message.text.split()
+        if len(args) != 2:
+            await message.answer(
+                "Usage: /create_demo_workout USER_ID\n"
+                "Example: /create_demo_workout 123456789"
+            )
+            return
+
+        try:
+            user_id = int(args[1])
+        except ValueError:
+            await message.answer("❌ USER_ID must be an integer.")
+            return
+
+        # Check if athlete exists
+        athlete = athlete_service.get_athlete(user_id)
+        if not athlete:
+            await message.answer(f"❌ Athlete {user_id} not found.")
+            return
+
+        # Create demo workout
+        session = workout_service.create_demo_workout(athlete_id=user_id)
+
+        await message.answer(
+            f"✅ Demo workout created!\n\n"
+            f"Athlete ID: {user_id}\n"
+            f"Session ID: {session.session_id}\n"
+            f"Title: {session.title}\n"
+            f"Exercises: {len(session.exercises)}\n\n"
+            f"The athlete can now use /workout to start."
+        )
 
     @admin_router.message(Command("add_athlete"))
     async def cmd_add_athlete(message: Message):
