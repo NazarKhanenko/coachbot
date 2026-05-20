@@ -97,12 +97,22 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
         await send_exercise_with_video(message.bot, message.chat.id, exercise_text, exercise, keyboard)
         logger.info(f"Athlete {user_id} viewed workout exercise {current_num}/{total}")
 
-    @message_router.message(
-        (F.video | F.document | F.text)
-        & (~F.command)  # Exclude commands
-    )
-    async def handle_media_message(message: types.Message) -> None:
-        """Handle media submissions (video/file/link) during waiting_video state."""
+    @message_router.message(F.video)
+    async def handle_video_message(message: types.Message) -> None:
+        """Handle video submissions during waiting_video state."""
+        await _process_media_submission(message, "video")
+
+    @message_router.message(F.document)
+    async def handle_document_message(message: types.Message) -> None:
+        """Handle document submissions during waiting_video state."""
+        await _process_media_submission(message, "document")
+
+    @message_router.message(F.text & ~F.command)
+    async def handle_text_message(message: types.Message) -> None:
+        """Handle text/link submissions during waiting_video state."""
+        await _process_media_submission(message, "text")
+
+    async def _process_media_submission(message: types.Message, media_type: str) -> None:
         user_id = message.from_user.id
         username = message.from_user.username or f"user_{user_id}"
         
