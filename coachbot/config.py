@@ -12,9 +12,9 @@ from dataclasses import dataclass
 class Config:
     """Application configuration."""
 
-    telegram_bot_token: str
-    admin_id: int
-    log_level: str = "INFO"
+    BOT_TOKEN: str
+    ADMIN_ID: int
+    LOG_LEVEL: str = "INFO"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -33,9 +33,9 @@ class Config:
             raise ValueError("ADMIN_ID must be a valid integer")
 
         return cls(
-            telegram_bot_token=token,
-            admin_id=admin_id,
-            log_level=os.getenv("LOG_LEVEL", "INFO"),
+            BOT_TOKEN=token,
+            ADMIN_ID=admin_id,
+            LOG_LEVEL=os.getenv("LOG_LEVEL", "INFO"),
         )
 
 
@@ -49,3 +49,7 @@ def get_config() -> Config:
     if _config is None:
         _config = Config.from_env()
     return _config
+
+
+# Convenience alias
+config = get_config()

@@ -16,17 +16,17 @@ import logging
 
 from aiogram import Bot, Dispatcher
 
-from config import get_config
-from handlers import setup_handlers
+from .config import config
+from .handlers import setup_handlers
+from .services.athlete_service import AthleteService
+from .storage.athlete_storage import AthleteStorage
 
 
 async def create_bot() -> None:
     """Initialize and run the bot."""
-    config = get_config()
-
     # Configure logging
     logging.basicConfig(
-        level=getattr(logging, config.log_level),
+        level=getattr(logging, config.LOG_LEVEL),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
@@ -34,11 +34,15 @@ async def create_bot() -> None:
     logger.info("Starting Telegram Coaching Bot...")
 
     # Initialize Aiogram bot and dispatcher
-    bot = Bot(token=config.telegram_bot_token)
+    bot = Bot(token=config.BOT_TOKEN)
     dp = Dispatcher()
 
-    # Setup handlers
-    setup_handlers(dp)
+    # Initialize services (singletons for now)
+    athlete_storage = AthleteStorage()
+    athlete_service = AthleteService(storage=athlete_storage)
+
+    # Setup handlers with services
+    setup_handlers(dp, athlete_service)
 
     logger.info("Bot initialized successfully. Starting polling...")
 

@@ -36,7 +36,22 @@ class Athlete:
     telegram_id: int
     username: str
     coach_id: int  # Reference to coach's telegram_id
+    active: bool = True
+    subscription_expires_at: Optional[datetime] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
+
+    def is_subscription_valid(self) -> bool:
+        """Check if subscription is currently active."""
+        if not self.active or not self.subscription_expires_at:
+            return False
+        return datetime.utcnow() < self.subscription_expires_at
+
+    def days_remaining(self) -> int:
+        """Calculate remaining days of subscription."""
+        if not self.subscription_expires_at:
+            return 0
+        delta = self.subscription_expires_at - datetime.utcnow()
+        return max(0, delta.days)
 
 
 @dataclass
