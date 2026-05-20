@@ -24,6 +24,39 @@ message_router = Router()
 def setup_message_handlers(dp, athlete_service: AthleteService, workout_service: WorkoutService):
     """Register message handlers with the dispatcher."""
 
+    # Media handler MUST be registered AFTER command handlers
+    # to ensure commands have priority
+    @message_router.message(Command("start"))
+    async def handle_start(message: types.Message) -> None:
+        """Handle /start command with access control."""
+        user_id = message.from_user.id
+        username = message.from_user.username or "unknown"
+        full_name = message.from_user.full_name or "User"
+
+        # Admin check first
+        if user_id == config.ADMIN_ID:
+            await message.answer("🎯 Coach admin panel initialized")
+            logger.info(f"Admin coach {user_id} started the bot")
+            return
+
+        # Check athlete access
+        if athlete_service.has_access(user_id):
+            info = athlete_service.get_access_info(user_id)
+            days = info["days_remaining"] if info else 0
+            
+            await message.answer(
+                f"✅ Training system access granted.\n\n"
+                f"Welcome, {full_name}!\n"
+                f"Subscription expires in {days} days."
+            )
+            logger.info(f"Athlete {user_id} accessed the bot")
+        else:
+            await message.answer(
+                "⛔ Access not granted.\n\n"
+                "Please contact your coach to get access."
+            )
+            logger.info(f"Unauthorized user {user_id} attempted access")
+
     @message_router.message(Command("workout"))
     async def handle_workout(message: types.Message) -> None:
         """Handle /workout command - show current exercise."""
@@ -64,7 +97,10 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
         await send_exercise_with_video(message.bot, message.chat.id, exercise_text, exercise, keyboard)
         logger.info(f"Athlete {user_id} viewed workout exercise {current_num}/{total}")
 
-    @message_router.message(F.video | F.document | F.text)
+    @message_router.message(
+        (F.video | F.document | F.text)
+        & (~F.command)  # Exclude commands
+    )
     async def handle_media_message(message: types.Message) -> None:
         """Handle media submissions (video/file/link) during waiting_video state."""
         user_id = message.from_user.id
@@ -92,9 +128,9 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
             media_type = "document"
             media_info = f"Document file_id: {message.document.file_id}"
         elif message.text:
-            # Check if it's a URL
+            # Check if it's a valid URL (http://, https://, or t.me/)
             text = message.text.strip()
-            if text.startswith(("http://", "https://")):
+            if text.startswith(("http://", "https://", "t.me/")):
                 media_type = "link"
                 media_info = f"Link: {text}"
             else:
@@ -158,37 +194,6 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
             )
         
         logger.info(f"Athlete {user_id} submitted {media_type} for exercise {exercise.title}")
-
-    @message_router.message(Command("start"))
-    async def handle_start(message: types.Message) -> None:
-        """Handle /start command with access control."""
-        user_id = message.from_user.id
-        username = message.from_user.username or "unknown"
-        full_name = message.from_user.full_name or "User"
-
-        # Admin check first
-        if user_id == config.ADMIN_ID:
-            await message.answer("🎯 Coach admin panel initialized")
-            logger.info(f"Admin coach {user_id} started the bot")
-            return
-
-        # Check athlete access
-        if athlete_service.has_access(user_id):
-            info = athlete_service.get_access_info(user_id)
-            days = info["days_remaining"] if info else 0
-            
-            await message.answer(
-                f"✅ Training system access granted.\n\n"
-                f"Welcome, {full_name}!\n"
-                f"Subscription expires in {days} days."
-            )
-            logger.info(f"Athlete {user_id} accessed the bot")
-        else:
-            await message.answer(
-                "⛔ Access not granted.\n\n"
-                "Please contact your coach to get access."
-            )
-            logger.info(f"Unauthorized user {user_id} attempted access")
 
 
 async def send_exercise_with_video(bot, chat_id: int, text: str, exercise, keyboard):
