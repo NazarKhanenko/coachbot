@@ -7,8 +7,8 @@ Services encapsulate business rules and coordinate between handlers and storage.
 import logging
 from typing import Optional
 
-from models.entities import Athlete, Coach, ExerciseSession, ExerciseStatus, Workout
-from storage import get_storage
+from coachbot.models.entities import Athlete, Coach, ExerciseSession, ExerciseStatus, Workout
+from coachbot.storage import get_storage
 
 logger = logging.getLogger(__name__)
 

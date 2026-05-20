@@ -6,8 +6,10 @@ Will support database backends in production.
 """
 
 from .in_memory import InMemoryStorage, get_storage
+from .athlete_storage import AthleteStorage
 
 __all__ = [
     "InMemoryStorage",
     "get_storage",
+    "AthleteStorage",
 ]
