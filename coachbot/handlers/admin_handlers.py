@@ -1,4 +1,5 @@
 """Admin-only command handlers for athlete management."""
+import logging
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -6,6 +7,8 @@ from aiogram.types import Message
 from config import config
 from services.athlete_service import AthleteService
 from services.workout_service import WorkoutService
+
+logger = logging.getLogger(__name__)
 
 admin_router = Router()
 
@@ -17,37 +20,50 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
     async def cmd_create_demo_workout(message: Message):
         """Create a demo workout for an athlete: /create_demo_workout USER_ID"""
         if message.from_user.id != config.ADMIN_ID:
-            await message.answer("⛔ Admin only command.")
+            await message.answer("⛔ Команда только для администратора.")
             return
 
         args = message.text.split()
         if len(args) != 2:
+            logger.info(f"Invalid admin command usage: /create_demo_workout by {message.from_user.id}")
             await message.answer(
-                "Usage: /create_demo_workout USER_ID\n"
-                "Example: /create_demo_workout 123456789"
+                "❌ Использование: /create_demo_workout USER_ID\n"
+                "Пример: /create_demo_workout 123456789"
             )
             return
 
+        # Validate USER_ID is integer
         try:
             user_id = int(args[1])
         except ValueError:
-            await message.answer("❌ USER_ID must be an integer.")
+            await message.answer("❌ USER_ID должен быть целым числом.")
             return
 
         # Check if athlete exists
         athlete = athlete_service.get_athlete(user_id)
         if not athlete:
-            await message.answer(f"❌ Athlete {user_id} not found.")
+            await message.answer(f"❌ Спортсмен {user_id} не найден.")
+            return
+
+        # Check if athlete is active
+        if not athlete.active:
+            await message.answer(f"❌ Спортсмен {user_id} не активен.")
+            return
+
+        if not athlete.is_subscription_valid():
+            await message.answer(f"❌ У спортсмена {user_id} истёк срок подписки.")
             return
 
         # Create demo workout
         session = workout_service.create_demo_workout(athlete_id=user_id)
 
+        logger.info(f"Demo workout created for athlete {user_id} by admin {message.from_user.id}")
+
         await message.answer(
             f"✅ Тренировка создана\n\n"
-            f"Спортсмен: {user_id}\n"
-            f"Название: {session.title}\n"
-            f"Упражнений: {len(session.exercises)}\n\n"
+            f"👤 Спортсмен: {user_id}\n"
+            f"📋 Название: {session.title}\n"
+            f"🏋️ Упражнений: {len(session.exercises)}\n\n"
             f"Спортсмен может начать с /workout"
         )
 
@@ -55,22 +71,40 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
     async def cmd_add_athlete(message: Message):
         """Add a new athlete: /add_athlete USER_ID DAYS"""
         if message.from_user.id != config.ADMIN_ID:
-            await message.answer("⛔ Admin only command.")
+            await message.answer("⛔ Команда только для администратора.")
             return
 
         args = message.text.split()
         if len(args) != 3:
+            logger.info(f"Invalid admin command usage: /add_athlete by {message.from_user.id}")
             await message.answer(
-                "Usage: /add_athlete USER_ID DAYS\n"
-                "Example: /add_athlete 123456789 30"
+                "❌ Использование: /add_athlete USER_ID DAYS\n"
+                "Пример: /add_athlete 123456789 30"
             )
             return
 
+        # Validate USER_ID is integer
         try:
             user_id = int(args[1])
+        except ValueError:
+            await message.answer("❌ USER_ID должен быть целым числом.")
+            return
+
+        # Validate DAYS is positive integer
+        try:
             days = int(args[2])
         except ValueError:
-            await message.answer("❌ USER_ID and DAYS must be integers.")
+            await message.answer("❌ DAYS должен быть целым числом.")
+            return
+
+        if days <= 0:
+            await message.answer("❌ DAYS должен быть положительным числом (> 0).")
+            return
+
+        # Check for duplicate active athlete
+        existing = athlete_service.get_athlete(user_id)
+        if existing and existing.active and existing.is_subscription_valid():
+            await message.answer("⚠️ Спортсмен уже активен.")
             return
 
         athlete = athlete_service.add_athlete(
@@ -80,52 +114,60 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             days=days,
         )
 
+        logger.info(f"Athlete added: ID={user_id}, days={days} by admin {message.from_user.id}")
+
         await message.answer(
-            f"✅ Спортсмен добавлен\n"
-            f"User ID: {athlete.telegram_id}\n"
-            f"Subscription: {days} days\n"
-            f"Expires: {athlete.subscription_expires_at.strftime('%Y-%m-%d %H:%M')}"
+            f"✅ Спортсмен добавлен\n\n"
+            f"👤 ID: {athlete.telegram_id}\n"
+            f"📅 Подписка: {days} дней\n"
+            f"⏳ До: {athlete.subscription_expires_at.strftime('%Y-%m-%d')}"
         )
 
     @admin_router.message(Command("remove_athlete"))
     async def cmd_remove_athlete(message: Message):
         """Remove an athlete: /remove_athlete USER_ID"""
         if message.from_user.id != config.ADMIN_ID:
-            await message.answer("⛔ Admin only command.")
+            await message.answer("⛔ Команда только для администратора.")
             return
 
         args = message.text.split()
         if len(args) != 2:
-            await message.answer("Usage: /remove_athlete USER_ID")
+            logger.info(f"Invalid admin command usage: /remove_athlete by {message.from_user.id}")
+            await message.answer(
+                "❌ Использование: /remove_athlete USER_ID\n"
+                "Пример: /remove_athlete 123456789"
+            )
             return
 
+        # Validate USER_ID is integer
         try:
             user_id = int(args[1])
         except ValueError:
-            await message.answer("❌ USER_ID must be an integer.")
+            await message.answer("❌ USER_ID должен быть целым числом.")
             return
 
         if athlete_service.remove_athlete(user_id):
+            logger.info(f"Athlete removed: ID={user_id} by admin {message.from_user.id}")
             await message.answer(f"⛔ Доступ спортсмена отключён (ID: {user_id}).")
         else:
-            await message.answer(f"❌ Athlete {user_id} not found.")
+            await message.answer(f"❌ Спортсмен {user_id} не найден.")
 
     @admin_router.message(Command("list_athletes"))
     async def cmd_list_athletes(message: Message):
         """List all athletes with their status."""
         if message.from_user.id != config.ADMIN_ID:
-            await message.answer("⛔ Admin only command.")
+            await message.answer("⛔ Команда только для администратора.")
             return
 
         athletes = athlete_service.list_athletes()
 
         if not athletes:
-            await message.answer("📭 No athletes registered yet.")
+            await message.answer("📭 Спортсменов пока нет.")
             return
 
-        lines = ["📋 **Athletes:**", ""]
+        lines = ["📋 **Спортсмены:**", ""]
         for athlete in athletes:
-            status = "🟢 Active" if athlete.active else "🔴 Inactive"
+            status = "🟢 Активен" if athlete.active else "🔴 Неактивен"
             days = athlete.days_remaining()
             
             if athlete.subscription_expires_at:
@@ -135,9 +177,9 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
 
             lines.append(
                 f"• ID: `{athlete.telegram_id}`\n"
-                f"  Status: {status}\n"
-                f"  Days left: {days}\n"
-                f"  Expires: {expires}\n"
+                f"  Статус: {status}\n"
+                f"  Дней осталось: {days}\n"
+                f"  Истекает: {expires}\n"
             )
 
         await message.answer("\n".join(lines), parse_mode="Markdown")
