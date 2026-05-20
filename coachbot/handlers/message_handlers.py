@@ -52,8 +52,3 @@ def setup_message_handlers(dp, athlete_service: AthleteService):
                 "Please contact your coach to get access."
             )
             logger.info(f"Unauthorized user {user_id} attempted access")
-
-
-def get_message_router() -> Router:
-    """Get the message router for registration."""
-    return message_router
