@@ -3,8 +3,8 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from ..config import config
-from ..services.athlete_service import AthleteService
+from config import config
+from services.athlete_service import AthleteService
 
 admin_router = Router()
 

@@ -10,8 +10,8 @@ import logging
 from aiogram import Router, types
 from aiogram.filters import Command
 
-from ..config import config
-from ..services.athlete_service import AthleteService
+from config import config
+from services.athlete_service import AthleteService
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 message_router = Router()
 
 
-def setup_message_handlers(router: Router, athlete_service: AthleteService):
-    """Register message handlers with the router."""
+def setup_message_handlers(dp, athlete_service: AthleteService):
+    """Register message handlers with the dispatcher."""
 
-    @router.message(Command("start"))
+    @message_router.message(Command("start"))
     async def handle_start(message: types.Message) -> None:
         """Handle /start command with access control."""
         user_id = message.from_user.id
@@ -52,3 +52,8 @@ def setup_message_handlers(router: Router, athlete_service: AthleteService):
                 "Please contact your coach to get access."
             )
             logger.info(f"Unauthorized user {user_id} attempted access")
+
+
+def get_message_router() -> Router:
+    """Get the message router for registration."""
+    return message_router

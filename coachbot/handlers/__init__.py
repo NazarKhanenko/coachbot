@@ -8,10 +8,10 @@ Handler routers for the bot.
 
 from aiogram import Dispatcher
 
-from ..services.athlete_service import AthleteService
-from .admin_handlers import setup_admin_handlers
-from .callback_handlers import callback_router
-from .message_handlers import setup_message_handlers
+from services.athlete_service import AthleteService
+from handlers.admin_handlers import setup_admin_handlers
+from handlers.callback_handlers import callback_router
+from handlers.message_handlers import setup_message_handlers
 
 
 def setup_handlers(dp: Dispatcher, athlete_service: AthleteService) -> None:

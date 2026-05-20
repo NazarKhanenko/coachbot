@@ -6,8 +6,8 @@ It acts as a facade between handlers and storage.
 from datetime import datetime
 from typing import Optional
 
-from ..models.entities import Athlete
-from ..storage.athlete_storage import AthleteStorage
+from models.entities import Athlete
+from storage.athlete_storage import AthleteStorage
 
 
 class AthleteService:

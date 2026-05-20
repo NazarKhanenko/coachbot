@@ -16,10 +16,10 @@ import logging
 
 from aiogram import Bot, Dispatcher
 
-from .config import config
-from .handlers import setup_handlers
-from .services.athlete_service import AthleteService
-from .storage.athlete_storage import AthleteStorage
+from config import config
+from handlers import setup_handlers
+from services.athlete_service import AthleteService
+from storage.athlete_storage import AthleteStorage
 
 
 async def create_bot() -> None:
