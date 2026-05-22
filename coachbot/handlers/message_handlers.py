@@ -23,12 +23,15 @@ message_router = Router()
 
 def setup_message_handlers(dp, athlete_service: AthleteService, workout_service: WorkoutService):
     """Register message handlers with the dispatcher."""
+    logger.info("[MESSAGE] Setting up message handlers")
 
     # Media handler MUST be registered AFTER command handlers
     # to ensure commands have priority
     @message_router.message(Command("start"))
     async def handle_start(message: types.Message) -> None:
         """Handle /start command with access control."""
+        logger.info(f"[TRACE] Handler entered: handle_start from user {message.from_user.id}")
+        
         user_id = message.from_user.id
         username = message.from_user.username or "unknown"
         full_name = message.from_user.full_name or "User"
@@ -56,10 +59,13 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
                 "Please contact your coach to get access."
             )
             logger.info(f"Unauthorized user {user_id} attempted access")
+        logger.info(f"[TRACE] Handler completed: handle_start")
 
     @message_router.message(Command("workout"))
     async def handle_workout(message: types.Message) -> None:
         """Handle /workout command - show current exercise."""
+        logger.info(f"[TRACE] Handler entered: handle_workout from user {message.from_user.id}")
+        
         user_id = message.from_user.id
         username = message.from_user.username or f"user_{user_id}"
         
@@ -96,20 +102,29 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
 
         await send_exercise_with_video(message.bot, message.chat.id, exercise_text, exercise, keyboard)
         logger.info(f"Athlete {user_id} viewed workout exercise {current_num}/{total}")
+        logger.info(f"[TRACE] Handler completed: handle_workout")
 
     @message_router.message(F.video)
     async def handle_video_message(message: types.Message) -> None:
         """Handle video submissions during waiting_video state."""
+        logger.info(f"[TRACE] Handler entered: handle_video_message from user {message.from_user.id}")
         await _process_media_submission(message, "video")
 
     @message_router.message(F.document)
     async def handle_document_message(message: types.Message) -> None:
         """Handle document submissions during waiting_video state."""
+        logger.info(f"[TRACE] Handler entered: handle_document_message from user {message.from_user.id}")
         await _process_media_submission(message, "document")
 
-    @message_router.message(F.text & ~F.command)
+    @message_router.message(F.text)
     async def handle_text_message(message: types.Message) -> None:
         """Handle text/link submissions during waiting_video state."""
+        # Skip if this is a command - return None to let other handlers process it
+        if message.entities and any(e.type == "bot_command" for e in message.entities):
+            logger.debug(f"[TRACE] Skipping command in handle_text_message: {message.text[:50]}")
+            return  # Return None (not explicitly) to indicate handler didn't process
+        
+        logger.info(f"[TRACE] Handler entered: handle_text_message from user {message.from_user.id}, text: {message.text[:50]}")
         await _process_media_submission(message, "text")
 
     async def _process_media_submission(message: types.Message, media_type: str) -> None:
@@ -119,12 +134,14 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
         # Check if user has an active workout in waiting_video state
         result = workout_service.get_current_exercise(user_id)
         if not result:
+            logger.debug(f"[TRACE] No active workout for user {user_id}, skipping media submission")
             return
         
         session, exercise, total = result
         
         # Only process if exercise is in waiting_video state
         if exercise.state != "waiting_video":
+            logger.debug(f"[TRACE] Exercise not in waiting_video state, skipping")
             return
         
         # Determine what type of media was sent
@@ -145,9 +162,11 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
                 media_info = f"Link: {text}"
             else:
                 # Not a valid link, ignore
+                logger.debug(f"[TRACE] Invalid link format, ignoring")
                 return
         
         if not media_type:
+            logger.debug(f"[TRACE] No valid media type detected, ignoring")
             return
         
         # Update exercise state to completed
@@ -204,6 +223,8 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
             )
         
         logger.info(f"Athlete {user_id} submitted {media_type} for exercise {exercise.title}")
+
+    logger.info("[MESSAGE] Message handlers registered: start, workout, video, document, text")
 
 
 async def send_exercise_with_video(bot, chat_id: int, text: str, exercise, keyboard):
