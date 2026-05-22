@@ -150,25 +150,27 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
                 )
             return
         
-        # Build compact athlete list with clickable cards
-        lines = ["👥 Список спортсменов:", ""]
+        # Build compact athlete list - each athlete is a clickable button with username as primary identity
         keyboard_buttons = []
         
         for athlete in athletes:
             status_icon = "🟢" if athlete.active and athlete.is_subscription_valid() else "🔴"
             days = athlete.days_remaining()
-            username = getattr(athlete, 'username', f'user_{athlete.telegram_id}')
+            username = getattr(athlete, 'username', None)
             
-            # Compact card format: @username • 29 дней
-            if days is not None:
-                card_text = f"{status_icon} @{username} • {days} дн."
+            # Button text: @username • 29 дн. (ID only shown in profile, not here)
+            if username:
+                btn_label = f"{status_icon} @{username}"
             else:
-                card_text = f"{status_icon} @{username} • frozen"
+                btn_label = f"{status_icon} user_{athlete.telegram_id}"
             
-            lines.append(card_text)
+            if days is not None:
+                btn_label += f" • {days} дн."
+            else:
+                btn_label += " • frozen"
             
             # Add action button for this athlete (compact inline button)
-            keyboard_buttons.append([InlineKeyboardButton(text=f"👤 {athlete.telegram_id}", callback_data=f"admin_athlete_profile_{athlete.telegram_id}")])
+            keyboard_buttons.append([InlineKeyboardButton(text=btn_label, callback_data=f"admin_athlete_profile_{athlete.telegram_id}")])
         
         # Add navigation buttons
         keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")])
@@ -177,9 +179,9 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
         
         try:
-            await callback.message.edit_text("\n".join(lines), reply_markup=keyboard)
+            await callback.message.edit_text("👥 Спортсмены:", reply_markup=keyboard)
         except TelegramBadRequest:
-            await callback.message.answer("\n".join(lines), reply_markup=keyboard)
+            await callback.message.answer("👥 Спортсмены:", reply_markup=keyboard)
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_profile_"))
     async def cb_admin_athlete_profile(callback: CallbackQuery, athlete_service: AthleteService):
@@ -278,17 +280,23 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_assign_demo_"))
     async def cb_admin_assign_demo(callback: CallbackQuery, athlete_service: AthleteService, workout_service: WorkoutService):
-        """Assign demo workout to athlete with DEBUG logging."""
+        """Assign demo workout to athlete with comprehensive runtime logging."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_assign_demo_", ""))
         
-        logger.debug(f"[DEBUG] Demo workout callback received for athlete_id={athlete_id}")
+        # LOG 1: Callback entered
+        logger.info(f"[DEMO_WORKOUT] Callback entered for athlete_id={athlete_id}")
         
         # Check if athlete exists and is active
         athlete = athlete_service.get_athlete(athlete_id)
-        logger.debug(f"[DEBUG] Athlete lookup result: {athlete}")
+        
+        # LOG 2: Athlete found?
+        logger.info(f"[DEMO_WORKOUT] Athlete lookup result: {'FOUND' if athlete else 'NOT_FOUND'}")
+        if athlete:
+            logger.info(f"[DEMO_WORKOUT] Athlete details: telegram_id={athlete.telegram_id}, username={getattr(athlete, 'username', 'N/A')}, active={athlete.active}, subscription_valid={athlete.is_subscription_valid()}")
         
         if not athlete:
+            logger.error(f"[DEMO_WORKOUT] Athlete {athlete_id} not found")
             try:
                 await callback.message.edit_text(f"❌ Спортсмен {athlete_id} не найден.", reply_markup=admin_back_to_main_keyboard())
             except TelegramBadRequest:
@@ -296,15 +304,30 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             return
         
         if not athlete.active or not athlete.is_subscription_valid():
+            logger.warning(f"[DEMO_WORKOUT] Athlete {athlete_id} is not active or subscription invalid: active={athlete.active}, subscription_valid={athlete.is_subscription_valid()}")
             try:
                 await callback.message.edit_text(f"❌ Спортсмен {athlete_id} не активен.", reply_markup=admin_back_to_main_keyboard())
             except TelegramBadRequest:
                 await callback.message.answer(f"❌ Спортсмен {athlete_id} не активен.", reply_markup=admin_back_to_main_keyboard())
             return
         
+        # LOG 3: Workout service available?
+        logger.info(f"[DEMO_WORKOUT] Workout service available: {workout_service is not None}")
+        
         # Create demo workout
-        session = workout_service.create_demo_workout(athlete_id=athlete_id)
-        logger.debug(f"[DEBUG] Workout creation result: session_id={session.id if session else None}, title={session.title if session else 'N/A'}")
+        session = None
+        try:
+            session = workout_service.create_demo_workout(athlete_id=athlete_id)
+            # LOG 4: Demo workout created?
+            logger.info(f"[DEMO_WORKOUT] Demo workout created: session_id={session.id if session else 'NONE'}, title={session.title if session else 'N/A'}")
+        except Exception as e:
+            # LOG 5: Exception traceback
+            logger.exception(f"[DEMO_WORKOUT] Exception during workout creation: {type(e).__name__}: {e}")
+            try:
+                await callback.message.edit_text(f"❌ Ошибка создания тренировки: {e}", reply_markup=admin_back_to_main_keyboard())
+            except TelegramBadRequest:
+                await callback.message.answer(f"❌ Ошибка создания тренировки: {e}", reply_markup=admin_back_to_main_keyboard())
+            return
         
         try:
             await callback.message.edit_text(
@@ -321,7 +344,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
                 reply_markup=admin_back_to_main_keyboard(),
             )
         
-        logger.info(f"Demo workout assigned to athlete {athlete_id} by admin")
+        logger.info(f"[DEMO_WORKOUT] Successfully assigned to athlete {athlete_id} by admin")
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_freeze_"))
     async def cb_admin_athlete_freeze(callback: CallbackQuery, athlete_service: AthleteService):
