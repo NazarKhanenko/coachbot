@@ -29,7 +29,7 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
     # to ensure commands have priority
     @message_router.message(Command("start"))
     async def handle_start(message: types.Message) -> None:
-        """Handle /start command with access control."""
+        """Handle /start command with access control and auto-registration."""
         logger.info(f"[TRACE] Handler entered: handle_start from user {message.from_user.id}")
         
         user_id = message.from_user.id
@@ -42,6 +42,17 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
             logger.info(f"Admin coach {user_id} started the bot")
             return
 
+        # PART 4: USER AUTO-REGISTRATION
+        # Check if athlete exists, if not create lightweight profile
+        athlete = athlete_service.get_athlete(user_id)
+        if not athlete:
+            # Auto-register new user with inactive profile
+            athlete_service.storage.create_lightweight_profile(
+                telegram_id=user_id,
+                username=username,
+            )
+            logger.info(f"[AUTO-REGISTER] Created profile for user {user_id} (@{username})")
+        
         # Check athlete access
         if athlete_service.has_access(user_id):
             info = athlete_service.get_access_info(user_id)
