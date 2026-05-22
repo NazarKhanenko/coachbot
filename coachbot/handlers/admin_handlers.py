@@ -319,7 +319,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         try:
             session = workout_service.create_demo_workout(athlete_id=athlete_id)
             # LOG 4: Demo workout created?
-            logger.info(f"[DEMO_WORKOUT] Demo workout created: session_id={session.id if session else 'NONE'}, title={session.title if session else 'N/A'}")
+            logger.info(f"[DEMO_WORKOUT] Demo workout created: session_id={session.session_id if session else 'NONE'}, title={session.title if session else 'N/A'}")
         except Exception as e:
             # LOG 5: Exception traceback
             logger.exception(f"[DEMO_WORKOUT] Exception during workout creation: {type(e).__name__}: {e}")

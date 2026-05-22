@@ -6,23 +6,11 @@ __pycache__/
 *.pyd
 
 # Dependencies
-.venv/
 venv/
-env/
+.venv/
 .env
 .env.local
 .env.*
-
-# Build artifacts
-dist/
-build/
-*.egg-info/
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
 
 # Logs
 *.log
@@ -34,6 +22,10 @@ htmlcov/
 
 # Temporary files
 *.tmp
+*.swp
+*.swo
+
+# OS generated files
 .DS_Store
 Thumbs.db
 ```
