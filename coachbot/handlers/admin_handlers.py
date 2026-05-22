@@ -15,11 +15,15 @@ admin_router = Router()
 
 def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_service: WorkoutService):
     """Register admin handlers with the router."""
+    logger.info("[ADMIN] Setting up admin handlers")
 
     @admin_router.message(Command("create_demo_workout"))
     async def cmd_create_demo_workout(message: Message):
         """Create a demo workout for an athlete: /create_demo_workout USER_ID"""
+        logger.info(f"[TRACE] Handler entered: cmd_create_demo_workout from user {message.from_user.id}")
+        
         if message.from_user.id != config.ADMIN_ID:
+            logger.info(f"[TRACE] AdminFilter failed: user {message.from_user.id} != {config.ADMIN_ID}")
             await message.answer("⛔ Команда только для администратора.")
             return
 
@@ -66,11 +70,15 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             f"🏋️ Упражнений: {len(session.exercises)}\n\n"
             f"Спортсмен может начать с /workout"
         )
+        logger.info(f"[TRACE] Handler completed: cmd_create_demo_workout")
 
     @admin_router.message(Command("add_athlete"))
     async def cmd_add_athlete(message: Message):
         """Add a new athlete: /add_athlete USER_ID DAYS"""
+        logger.info(f"[TRACE] Handler entered: cmd_add_athlete from user {message.from_user.id}, text: {message.text}")
+        
         if message.from_user.id != config.ADMIN_ID:
+            logger.info(f"[TRACE] AdminFilter failed: user {message.from_user.id} != {config.ADMIN_ID}")
             await message.answer("⛔ Команда только для администратора.")
             return
 
@@ -122,11 +130,15 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             f"📅 Подписка: {days} дней\n"
             f"⏳ До: {athlete.subscription_expires_at.strftime('%Y-%m-%d')}"
         )
+        logger.info(f"[TRACE] Handler completed: cmd_add_athlete")
 
     @admin_router.message(Command("remove_athlete"))
     async def cmd_remove_athlete(message: Message):
         """Remove an athlete: /remove_athlete USER_ID"""
+        logger.info(f"[TRACE] Handler entered: cmd_remove_athlete from user {message.from_user.id}")
+        
         if message.from_user.id != config.ADMIN_ID:
+            logger.info(f"[TRACE] AdminFilter failed: user {message.from_user.id} != {config.ADMIN_ID}")
             await message.answer("⛔ Команда только для администратора.")
             return
 
@@ -151,11 +163,15 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             await message.answer(f"⛔ Доступ спортсмена отключён (ID: {user_id}).")
         else:
             await message.answer(f"❌ Спортсмен {user_id} не найден.")
+        logger.info(f"[TRACE] Handler completed: cmd_remove_athlete")
 
     @admin_router.message(Command("list_athletes"))
     async def cmd_list_athletes(message: Message):
         """List all athletes with their status."""
+        logger.info(f"[TRACE] Handler entered: cmd_list_athletes from user {message.from_user.id}")
+        
         if message.from_user.id != config.ADMIN_ID:
+            logger.info(f"[TRACE] AdminFilter failed: user {message.from_user.id} != {config.ADMIN_ID}")
             await message.answer("⛔ Команда только для администратора.")
             return
 
@@ -183,3 +199,6 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             )
 
         await message.answer("\n".join(lines), parse_mode="Markdown")
+        logger.info(f"[TRACE] Handler completed: cmd_list_athletes")
+    
+    logger.info(f"[ADMIN] Admin handlers registered: create_demo_workout, add_athlete, remove_athlete, list_athletes")
