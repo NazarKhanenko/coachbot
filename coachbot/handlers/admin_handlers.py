@@ -12,6 +12,7 @@ from keyboards.inline_keyboards import (
     admin_main_keyboard,
     admin_athletes_menu_keyboard,
     admin_back_to_athletes_keyboard,
+    admin_back_to_main_keyboard,
     admin_athlete_actions_keyboard,
     admin_workout_assign_keyboard,
     admin_help_request_keyboard,
@@ -20,6 +21,8 @@ from keyboards.inline_keyboards import (
     admin_weekly_plan_keyboard,
     admin_back_to_workouts_keyboard,
     admin_athlete_success_keyboard,
+    admin_warmup_keyboard,
+    admin_exercise_placeholder_keyboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,12 +82,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         try:
             await callback.message.edit_text(
                 "Введи Telegram ID спортсмена\n\n⬅️ /cancel - отмена",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 "Введи Telegram ID спортсмена\n\n⬅️ /cancel - отмена",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
 
     @admin_router.callback_query(F.data == "admin_back_athletes")
@@ -110,12 +113,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             try:
                 await callback.message.edit_text(
                     "📭 Спортсменов пока нет.",
-                    reply_markup=admin_back_to_athletes_keyboard(),
+                    reply_markup=admin_back_to_main_keyboard(),
                 )
             except TelegramBadRequest:
                 await callback.message.answer(
                     "📭 Спортсменов пока нет.",
-                    reply_markup=admin_back_to_athletes_keyboard(),
+                    reply_markup=admin_back_to_main_keyboard(),
                 )
             return
         
@@ -175,16 +178,16 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         athlete = athlete_service.get_athlete(athlete_id)
         if not athlete:
             try:
-                await callback.message.edit_text(f"❌ Спортсмен {athlete_id} не найден.", reply_markup=admin_back_to_athletes_keyboard())
+                await callback.message.edit_text(f"❌ Спортсмен {athlete_id} не найден.", reply_markup=admin_back_to_main_keyboard())
             except TelegramBadRequest:
-                await callback.message.answer(f"❌ Спортсмен {athlete_id} не найден.", reply_markup=admin_back_to_athletes_keyboard())
+                await callback.message.answer(f"❌ Спортсмен {athlete_id} не найден.", reply_markup=admin_back_to_main_keyboard())
             return
         
         if not athlete.active or not athlete.is_subscription_valid():
             try:
-                await callback.message.edit_text(f"❌ Спортсмен {athlete_id} не активен.", reply_markup=admin_back_to_athletes_keyboard())
+                await callback.message.edit_text(f"❌ Спортсмен {athlete_id} не активен.", reply_markup=admin_back_to_main_keyboard())
             except TelegramBadRequest:
-                await callback.message.answer(f"❌ Спортсмен {athlete_id} не активен.", reply_markup=admin_back_to_athletes_keyboard())
+                await callback.message.answer(f"❌ Спортсмен {athlete_id} не активен.", reply_markup=admin_back_to_main_keyboard())
             return
         
         # Create demo workout
@@ -196,7 +199,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
                 f"📋 Название: {session.title}\n"
                 f"🏋️ Упражнений: {len(session.exercises)}\n\n"
                 f"Спортсмен может начать с /workout",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
@@ -204,7 +207,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
                 f"📋 Название: {session.title}\n"
                 f"🏋️ Упражнений: {len(session.exercises)}\n\n"
                 f"Спортсмен может начать с /workout",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         
         logger.info(f"Demo workout assigned to athlete {athlete_id} by admin")
@@ -223,12 +226,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         try:
             await callback.message.edit_text(
                 f"⏸ Спортсмен {athlete_id} заморожен.",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 f"⏸ Спортсмен {athlete_id} заморожен.",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_remove_"))
@@ -243,12 +246,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         try:
             await callback.message.edit_text(
                 f"❌ Спортсмен {athlete_id} удалён.",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 f"❌ Спортсмен {athlete_id} удалён.",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
 
     @admin_router.callback_query(F.data == "admin_workouts")
@@ -279,6 +282,50 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             await callback.message.answer(
                 "🏋️ Тренировки\n\nВыберите категорию:",
                 reply_markup=admin_workouts_keyboard(),
+            )
+
+    @admin_router.callback_query(F.data == "admin_workout_warmup")
+    async def cb_admin_workout_warmup(callback: CallbackQuery):
+        """Show warmup exercises placeholder."""
+        await callback.answer()
+        try:
+            await callback.message.edit_text(
+                "🔥 Разминка\n\n"
+                "Упражнения для разминки:\n"
+                "• Jumping Jacks\n"
+                "• High Knees\n"
+                "• Butt Kicks\n"
+                "• Leg Swings\n"
+                "• Arm Circles",
+                reply_markup=admin_warmup_keyboard(),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                "🔥 Разминка\n\n"
+                "Упражнения для разминки:\n"
+                "• Jumping Jacks\n"
+                "• High Knees\n"
+                "• Butt Kicks\n"
+                "• Leg Swings\n"
+                "• Arm Circles",
+                reply_markup=admin_warmup_keyboard(),
+            )
+
+    @admin_router.callback_query(F.data == "admin_ex_placeholder")
+    async def cb_admin_ex_placeholder(callback: CallbackQuery):
+        """Show exercise placeholder message."""
+        await callback.answer()
+        try:
+            await callback.message.edit_text(
+                "🚧 Упражнение в разработке\n\n"
+                "Детали упражнения будут добавлены позже.",
+                reply_markup=admin_exercise_placeholder_keyboard(),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                "🚧 Упражнение в разработке\n\n"
+                "Детали упражнения будут добавлены позже.",
+                reply_markup=admin_exercise_placeholder_keyboard(),
             )
 
     @admin_router.callback_query(F.data == "admin_workout_speed_power")
@@ -347,12 +394,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             try:
                 await callback.message.edit_text(
                     "📨 Запросы помощи\n\nНет активных запросов.",
-                    reply_markup=admin_back_to_athletes_keyboard(),
+                    reply_markup=admin_back_to_main_keyboard(),
                 )
             except TelegramBadRequest:
                 await callback.message.answer(
                     "📨 Запросы помощи\n\nНет активных запросов.",
-                    reply_markup=admin_back_to_athletes_keyboard(),
+                    reply_markup=admin_back_to_main_keyboard(),
                 )
             return
         
@@ -383,12 +430,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         try:
             await callback.message.edit_text(
                 "✅ Запрос закрыт.",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 "✅ Запрос закрыт.",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
 
     @admin_router.callback_query(F.data == "admin_system")
@@ -447,12 +494,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         try:
             await callback.message.edit_text(
                 "Введи Telegram ID для поиска\n\n⬅️ /cancel - отмена",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 "Введи Telegram ID для поиска\n\n⬅️ /cancel - отмена",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
 
     @admin_router.message(lambda m: m.from_user.id == config.ADMIN_ID and m.text == "/cancel")
@@ -486,7 +533,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             state_info["data"]["telegram_id"] = telegram_id
             await message.answer(
                 "Введи количество дней подписки",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                reply_markup=admin_back_to_main_keyboard(),
             )
         
         elif state == "waiting_days":
