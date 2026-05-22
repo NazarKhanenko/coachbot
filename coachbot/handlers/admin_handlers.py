@@ -67,8 +67,13 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
     dp["athlete_service"] = athlete_service
     dp["workout_service"] = workout_service
     
-    # Register middleware for service injection
-    admin_router.middleware(ServiceInjectionMiddleware(athlete_service, workout_service))
+    # Register middleware for service injection (aiogram 3 compatible)
+    admin_router.message.middleware(
+        ServiceInjectionMiddleware(athlete_service, workout_service)
+    )
+    admin_router.callback_query.middleware(
+        ServiceInjectionMiddleware(athlete_service, workout_service)
+    )
 
     @admin_router.message(Command("start"))
     async def cmd_start_admin(message: Message):
