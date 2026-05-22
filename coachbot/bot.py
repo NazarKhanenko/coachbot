@@ -38,22 +38,7 @@ async def create_bot() -> None:
     bot = Bot(token=config.BOT_TOKEN)
     dp = Dispatcher()
 
-    # Add global update logger middleware
-    @dp.update.outermost
-    async def log_update(update: Update):
-        """Log every incoming update."""
-        if update.message:
-            msg = update.message
-            user_id = msg.from_user.id if msg.from_user else "unknown"
-            text = msg.text or "(no text)"
-            logger.info(f"[UPDATE] Received message from user {user_id}: {text[:100]}")
-        elif update.callback_query:
-            cb = update.callback_query
-            user_id = cb.from_user.id if cb.from_user else "unknown"
-            data = cb.data or "(no data)"
-            logger.info(f"[UPDATE] Received callback from user {user_id}: {data}")
-        else:
-            logger.info(f"[UPDATE] Received unknown update type: {update.update_type}")
+    logger.info("[BOOT] Initializing handlers...")
 
     # Initialize services (singletons for now)
     athlete_storage = AthleteStorage()
