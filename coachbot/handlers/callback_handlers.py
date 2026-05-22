@@ -25,9 +25,12 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         """Handle previous exercise navigation."""
         session_id = callback.data.replace("workout_prev_", "")
         
+        # Answer callback immediately to prevent duplicate processing
+        await callback.answer()
+        
         result = workout_service.previous_exercise(session_id)
         if not result:
-            await callback.answer("Уже первое упражнение.", show_alert=True)
+            await callback.message.answer("Уже первое упражнение.", show_alert=True)
             return
         
         session, exercise, total = result
@@ -44,16 +47,18 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         )
         
         await callback.message.edit_text(exercise_text, reply_markup=keyboard)
-        await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data.startswith("workout_done_"))
     async def handle_workout_done(callback: types.CallbackQuery) -> None:
         """Handle exercise marked as done - auto advance or complete workout."""
         session_id = callback.data.replace("workout_done_", "")
         
+        # Answer callback immediately to prevent duplicate processing
+        await callback.answer()
+        
         result = workout_service.get_current_exercise_by_session(session_id)
         if not result:
-            await callback.answer("Сессия не найдена.", show_alert=True)
+            await callback.message.answer("Сессия не найдена.", show_alert=True)
             return
         
         session, exercise, total = result
@@ -72,14 +77,12 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
                 "Отличная работа.\n"
                 "Тренер получил уведомление о завершении сессии."
             )
-            await callback.answer("🏁 Тренировка завершена!", show_alert=True)
             logger.info(f"Athlete {athlete_id} completed workout {session_id}")
             return
         
         # Check exercise state for video flow
         if exercise.state == "waiting_video":
             # Already waiting for video, ignore duplicate clicks
-            await callback.answer("📹 Ожидаем видео", show_alert=True)
             return
         
         # Not last exercise - check if video required
@@ -99,7 +102,6 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             
             # Remove keyboard while waiting for video
             await callback.message.edit_text(video_request_text)
-            await callback.answer("📹 Ожидаем видео", show_alert=True)
             
             # Notify admin about video request (only once)
             try:
@@ -121,7 +123,7 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         # Normal exercise or already completed video requirement - just advance to next
         next_result = workout_service.next_exercise(session_id)
         if not next_result:
-            await callback.answer("Ошибка перехода к следующему упражнению.", show_alert=True)
+            await callback.message.answer("Ошибка перехода к следующему упражнению.", show_alert=True)
             return
         
         next_session, next_exercise, next_total = next_result
@@ -137,17 +139,19 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         )
         
         await callback.message.edit_text(next_exercise_text, reply_markup=next_keyboard)
-        await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data.startswith("workout_help_"))
     async def handle_workout_help(callback: types.CallbackQuery) -> None:
         """Handle help request - notify admin."""
         session_id = callback.data.replace("workout_help_", "")
         
+        # Answer callback immediately to prevent duplicate processing
+        await callback.answer()
+        
         # Get session info for help notification
         result = workout_service.get_current_exercise_by_session(session_id)
         if not result:
-            await callback.answer("Сессия не найдена.", show_alert=True)
+            await callback.message.answer("Сессия не найдена.", show_alert=True)
             return
         
         session, exercise, total = result
@@ -169,11 +173,11 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             )
         except Exception as e:
             logger.error(f"Failed to send help notification to admin: {e}")
-            await callback.answer("Не удалось отправить запрос тренеру.", show_alert=True)
+            await callback.message.answer("Не удалось отправить запрос тренеру.", show_alert=True)
             return
         
         # Confirm to athlete
-        await callback.answer("🆘 Запрос отправлен тренеру.", show_alert=True)
+        await callback.message.answer("🆘 Запрос отправлен тренеру.", show_alert=False)
         logger.info(f"Help request sent by athlete {athlete_id} for exercise {exercise.title}")
 
     @callback_router.callback_query(lambda c: c.data.startswith("workout_"))
@@ -250,8 +254,9 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
 
 def format_exercise_card(exercise, current_num: int, total: int) -> str:
     """Format exercise card with clean Telegram-friendly layout."""
+    # Title already includes emoji from workout_service
     lines = [
-        f"🏃 {exercise.title}",
+        f"{exercise.title}",
         "",
         f"📋 Описание:",
         f"{exercise.description}",
@@ -273,6 +278,13 @@ def format_exercise_card(exercise, current_num: int, total: int) -> str:
             "",
             f"📹 Видео:",
             f"{exercise.video_url}",
+        ])
+    
+    # Show video requirement indicator
+    if exercise.requires_video and exercise.state == "pending":
+        lines.extend([
+            "",
+            f"📹 Требуется видеоотчёт",
         ])
     
     lines.extend([
