@@ -74,6 +74,49 @@ def admin_system_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def admin_workouts_keyboard() -> InlineKeyboardMarkup:
+    """Build workouts categories keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="⚡ Скорость и мощность", callback_data="admin_workout_speed_power")],
+        [InlineKeyboardButton(text="🏃 Спринт", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="🦘 Плиометрика", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="💪 Верх тела", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="🦵 Низ тела", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="⚽ Индивидуально с мячом", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="🥗 Питание", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="😴 Сон", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="🎯 Цели на матч", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="📅 Недельный план", callback_data="admin_weekly_plan")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_weekly_plan_keyboard() -> InlineKeyboardMarkup:
+    """Build weekly plan placeholder keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_workouts")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_back_to_workouts_keyboard() -> InlineKeyboardMarkup:
+    """Build back to workouts menu keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="⬅️ К тренировкам", callback_data="admin_back_workouts")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_athlete_success_keyboard(athlete_id: int) -> InlineKeyboardMarkup:
+    """Build success keyboard after adding athlete."""
+    buttons = [
+        [InlineKeyboardButton(text="🏋️ Выдать тренировку", callback_data=f"admin_athlete_workout_{athlete_id}")],
+        [InlineKeyboardButton(text="⬅️ В меню спортсменов", callback_data="admin_back_athletes")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def workout_session_keyboard(session_id: str, current_index: int, total_exercises: int) -> InlineKeyboardMarkup:
     """Build navigation keyboard for workout session exercises (MVP)."""
     buttons = []
