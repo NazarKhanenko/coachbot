@@ -78,6 +78,7 @@ class WorkoutExercise:
     rest_seconds: int = 60
     video_url: Optional[str] = None
     telegram_file_id: Optional[str] = None
+    media_type: Optional[str] = None  # "video", "photo" - for future media embeds
     requires_video: bool = False
     state: str = "pending"  # pending, waiting_video, completed
 
@@ -93,6 +94,8 @@ class WorkoutSession:
     current_exercise_index: int = 0
     completed: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)
+    active_message_id: Optional[int] = None
+    active_chat_id: Optional[int] = None
 
 
 @dataclass

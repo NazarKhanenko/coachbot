@@ -38,7 +38,7 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
 
         # Admin check first
         if user_id == config.ADMIN_ID:
-            await message.answer("🎯 Coach admin panel initialized")
+            await message.answer("🎛 Панель тренера активна")
             logger.info(f"Admin coach {user_id} started the bot")
             return
 
@@ -48,15 +48,15 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
             days = info["days_remaining"] if info else 0
             
             await message.answer(
-                f"✅ Training system access granted.\n\n"
-                f"Welcome, {full_name}!\n"
-                f"Subscription expires in {days} days."
+                f"✅ Доступ к системе предоставлен.\n\n"
+                f"{full_name}, добро пожаловать!\n"
+                f"Подписка действительна ещё {days} дн."
             )
             logger.info(f"Athlete {user_id} accessed the bot")
         else:
             await message.answer(
-                "⛔ Access not granted.\n\n"
-                "Please contact your coach to get access."
+                "⛔ Доступ не предоставлен.\n\n"
+                "Обратитесь к тренеру для получения доступа."
             )
             logger.info(f"Unauthorized user {user_id} attempted access")
         logger.info(f"[TRACE] Handler completed: handle_start")
@@ -100,7 +100,11 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
             total_exercises=total,
         )
 
-        await send_exercise_with_video(message.bot, message.chat.id, exercise_text, exercise, keyboard)
+        sent_message = await send_exercise_with_video(message.bot, message.chat.id, exercise_text, exercise, keyboard)
+        
+        # Store message reference for future edits
+        workout_service.set_active_message(session.session_id, message.chat.id, sent_message.message_id)
+        
         logger.info(f"Athlete {user_id} viewed workout exercise {current_num}/{total}")
         logger.info(f"[TRACE] Handler completed: handle_workout")
 
@@ -206,16 +210,19 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
                 total_exercises=next_total,
             )
             
-            await send_exercise_with_video(
+            sent_message = await send_exercise_with_video(
                 message.bot, 
                 message.chat.id, 
                 next_exercise_text, 
                 next_exercise, 
                 next_keyboard
             )
+            # Update stored message reference for future edits
+            workout_service.set_active_message(next_session.session_id, message.chat.id, sent_message.message_id)
         else:
             # No more exercises - complete workout
             workout_service.complete_workout(session.session_id)
+            workout_service.clear_active_message(session.session_id)
             await message.answer(
                 "🏁 Тренировка завершена\n\n"
                 "Отличная работа.\n"
@@ -228,10 +235,13 @@ def setup_message_handlers(dp, athlete_service: AthleteService, workout_service:
 
 
 async def send_exercise_with_video(bot, chat_id: int, text: str, exercise, keyboard):
-    """Send exercise card with embedded Telegram video if available."""
+    """Send exercise card with embedded Telegram video if available.
+    
+    Returns the sent message object for tracking.
+    """
     if exercise.telegram_file_id:
         # Send video with caption
-        await bot.send_video(
+        return await bot.send_video(
             chat_id=chat_id,
             video=exercise.telegram_file_id,
             caption=text,
@@ -239,4 +249,4 @@ async def send_exercise_with_video(bot, chat_id: int, text: str, exercise, keybo
         )
     else:
         # Send regular text message
-        await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
+        return await bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard)
