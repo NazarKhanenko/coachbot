@@ -21,30 +21,39 @@ class WorkoutService:
         """Create a demo workout with 3 exercises for an athlete."""
         exercises = [
             WorkoutExercise(
-                title="Sprint A-Skips",
-                description="Разогрев и активация спринтовой механики.",
+                title="🏃 Спринт A-Skips",
+                description="Разминка и активация спринтовой механики.\n\n"
+                           "• Высокий подъём бедра\n"
+                           "• Быстрый контакт с опорой\n"
+                           "• Корпус слегка наклонён вперёд",
                 sets=3,
                 reps="20 м",
                 rest_seconds=45,
-                video_url="https://example.com/sprint-a-skips",
+                video_url=None,
                 telegram_file_id=None,
                 requires_video=False,
                 state="pending",
             ),
             WorkoutExercise(
-                title="Lateral Bounds",
-                description="Боковые прыжки с акцентом на контроль и расстояние.",
+                title="🦘 Боковые прыжки",
+                description="Прыжки вправо-влево с акцентом на контроль приземления.\n\n"
+                           "• Мягкое приземление на обе ноги\n"
+                           "• Максимальная дистанция\n"
+                           "• Стабильный корпус",
                 sets=3,
                 reps="10 на ногу",
                 rest_seconds=60,
-                video_url="https://example.com/lateral-bounds",
+                video_url=None,
                 telegram_file_id=None,
                 requires_video=True,
                 state="pending",
             ),
             WorkoutExercise(
-                title="Broad Jumps",
-                description="Прыжки в длину с места на максимальную дистанцию.",
+                title="💥 Прыжки в длину с места",
+                description="Прыжки на максимальную дистанцию с места.\n\n"
+                           "• Глубокий присед перед прыжком\n"
+                           "• Мощный толчок двумя ногами\n"
+                           "• Дальний выброс рук",
                 sets=4,
                 reps="5 повторений",
                 rest_seconds=90,
@@ -58,7 +67,7 @@ class WorkoutService:
         session = WorkoutSession(
             session_id=str(uuid.uuid4()),
             athlete_id=athlete_id,
-            title="Demo Speed & Power Session",
+            title="⚡ Демо: Скорость и Мощность",
             exercises=exercises,
             current_exercise_index=0,
             completed=False,
