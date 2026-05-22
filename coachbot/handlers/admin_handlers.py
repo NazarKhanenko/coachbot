@@ -15,6 +15,7 @@ from keyboards.inline_keyboards import (
     admin_back_to_athletes_keyboard,
     admin_back_to_main_keyboard,
     admin_athlete_actions_keyboard,
+    admin_athlete_profile_keyboard,
     admin_workout_assign_keyboard,
     admin_help_request_keyboard,
     admin_system_keyboard,
