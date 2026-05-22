@@ -26,9 +26,5 @@ htmlcov/
 .idea/
 *.swp
 *.swo
-
-# Build
-dist/
-build/
-*.egg-info/
+*.tmp
 ```

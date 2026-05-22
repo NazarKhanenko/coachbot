@@ -180,3 +180,34 @@ class WorkoutService:
             f"🏃 Упражнение: {exercise.title}\n"
             f"🏋️ Тренировка: {session.title}"
         )
+
+    def set_active_message(self, session_id: str, chat_id: int, message_id: int) -> bool:
+        """Store the active workout message reference for editing."""
+        session = self.storage.get_session(session_id)
+        if not session:
+            return False
+        
+        session.active_chat_id = chat_id
+        session.active_message_id = message_id
+        return True
+
+    def get_active_message(self, session_id: str) -> Optional[tuple[int, int]]:
+        """Get the active message reference (chat_id, message_id) for editing.
+        
+        Returns tuple of (chat_id, message_id) or None if not set.
+        """
+        session = self.storage.get_session(session_id)
+        if not session or session.active_message_id is None or session.active_chat_id is None:
+            return None
+        
+        return (session.active_chat_id, session.active_message_id)
+
+    def clear_active_message(self, session_id: str) -> bool:
+        """Clear the active message reference when workout completes."""
+        session = self.storage.get_session(session_id)
+        if not session:
+            return False
+        
+        session.active_chat_id = None
+        session.active_message_id = None
+        return True

@@ -7,6 +7,7 @@ Handles workout navigation, exercise actions, and athlete management.
 import logging
 
 from aiogram import Router, types
+from aiogram.exceptions import TelegramBadRequest
 
 from config import config
 from services.workout_service import WorkoutService
@@ -46,7 +47,15 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             total_exercises=total,
         )
         
-        await callback.message.edit_text(exercise_text, reply_markup=keyboard)
+        # Try to edit existing message, fallback to sending new one
+        await update_workout_message(
+            bot=callback.bot,
+            session_id=session_id,
+            chat_id=callback.message.chat.id,
+            text=exercise_text,
+            keyboard=keyboard,
+            workout_service=workout_service,
+        )
 
     @callback_router.callback_query(lambda c: c.data.startswith("workout_done_"))
     async def handle_workout_done(callback: types.CallbackQuery) -> None:
@@ -70,13 +79,20 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         if current_num == total:
             # Complete entire workout
             workout_service.complete_workout(session_id)
+            workout_service.clear_active_message(session_id)
             
             # Remove keyboard and show completion message
-            await callback.message.edit_text(
+            completion_text = (
                 "🏁 Тренировка завершена\n\n"
                 "Отличная работа.\n"
                 "Тренер получил уведомление о завершении сессии."
             )
+            
+            try:
+                await callback.message.edit_text(completion_text)
+            except TelegramBadRequest:
+                await callback.message.answer(completion_text)
+            
             logger.info(f"Athlete {athlete_id} completed workout {session_id}")
             return
         
@@ -101,7 +117,13 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             )
             
             # Remove keyboard while waiting for video
-            await callback.message.edit_text(video_request_text)
+            try:
+                await callback.message.edit_text(video_request_text)
+                # Store message reference for future edits
+                workout_service.set_active_message(session_id, callback.message.chat.id, callback.message.message_id)
+            except TelegramBadRequest:
+                new_msg = await callback.message.answer(video_request_text)
+                workout_service.set_active_message(session_id, new_msg.chat.id, new_msg.message_id)
             
             # Notify admin about video request (only once)
             try:
@@ -138,7 +160,15 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             total_exercises=next_total,
         )
         
-        await callback.message.edit_text(next_exercise_text, reply_markup=next_keyboard)
+        # Try to edit existing message, fallback to sending new one
+        await update_workout_message(
+            bot=callback.bot,
+            session_id=session_id,
+            chat_id=callback.message.chat.id,
+            text=next_exercise_text,
+            keyboard=next_keyboard,
+            workout_service=workout_service,
+        )
 
     @callback_router.callback_query(lambda c: c.data.startswith("workout_help_"))
     async def handle_workout_help(callback: types.CallbackQuery) -> None:
@@ -176,7 +206,7 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
             await callback.message.answer("Не удалось отправить запрос тренеру.", show_alert=True)
             return
         
-        # Confirm to athlete
+        # Confirm to athlete using answer() to avoid cluttering chat
         await callback.message.answer("🆘 Запрос отправлен тренеру.", show_alert=False)
         logger.info(f"Help request sent by athlete {athlete_id} for exercise {exercise.title}")
 
@@ -186,11 +216,18 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         workout_id = callback.data.replace("workout_", "")
         
         # TODO: Fetch workout details and show first block/exercise
-        await callback.message.edit_text(
-            f"📋 Тренировка: {workout_id}\n\n"
-            f"Загрузка упражнений...\n\n"
-            f"(В разработке)"
-        )
+        try:
+            await callback.message.edit_text(
+                f"📋 Тренировка: {workout_id}\n\n"
+                f"Загрузка упражнений...\n\n"
+                f"(В разработке)"
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                f"📋 Тренировка: {workout_id}\n\n"
+                f"Загрузка упражнений...\n\n"
+                f"(В разработке)"
+            )
         await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data.startswith("done_"))
@@ -222,13 +259,19 @@ def setup_callback_handlers(dp: Router, workout_service: WorkoutService):
         # athlete_username = parts[1]
         
         # TODO: Call CoachService.add_athlete()
-        await callback.message.edit_text("✅ Спортсмен добавлен")
+        try:
+            await callback.message.edit_text("✅ Спортсмен добавлен")
+        except TelegramBadRequest:
+            await callback.message.answer("✅ Спортсмен добавлен")
         await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data == "cancel_add_athlete")
     async def handle_cancel_add_athlete(callback: types.CallbackQuery) -> None:
         """Handle cancellation of adding an athlete."""
-        await callback.message.edit_text("❌ Добавление спортсмена отменено.")
+        try:
+            await callback.message.edit_text("❌ Добавление спортсмена отменено.")
+        except TelegramBadRequest:
+            await callback.message.answer("❌ Добавление спортсмена отменено.")
         await callback.answer()
 
     @callback_router.callback_query(lambda c: c.data.startswith("prev_block_"))
@@ -293,3 +336,43 @@ def format_exercise_card(exercise, current_num: int, total: int) -> str:
     ])
     
     return "\n".join(lines)
+
+
+async def update_workout_message(
+    bot,
+    session_id: str,
+    chat_id: int,
+    text: str,
+    keyboard,
+    workout_service: WorkoutService,
+) -> None:
+    """Update workout message with fallback logic.
+    
+    Tries to edit the stored active message.
+    If edit fails (message deleted/too old), sends a fresh message.
+    """
+    # Get stored message reference
+    active_msg = workout_service.get_active_message(session_id)
+    
+    if active_msg:
+        stored_chat_id, stored_message_id = active_msg
+        try:
+            await bot.edit_message_text(
+                chat_id=stored_chat_id,
+                message_id=stored_message_id,
+                text=text,
+                reply_markup=keyboard,
+            )
+            logger.debug(f"[TRACE] Updated workout message {stored_message_id}")
+            return
+        except TelegramBadRequest as e:
+            logger.warning(f"Edit failed for message {stored_message_id}: {e}. Sending fresh message.")
+    
+    # Fallback: send new message and store reference
+    new_msg = await bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        reply_markup=keyboard,
+    )
+    workout_service.set_active_message(session_id, new_msg.chat.id, new_msg.message_id)
+    logger.debug(f"[TRACE] Sent new workout message {new_msg.message_id}")
