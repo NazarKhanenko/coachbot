@@ -16,6 +16,10 @@ from keyboards.inline_keyboards import (
     admin_workout_assign_keyboard,
     admin_help_request_keyboard,
     admin_system_keyboard,
+    admin_workouts_keyboard,
+    admin_weekly_plan_keyboard,
+    admin_back_to_workouts_keyboard,
+    admin_athlete_success_keyboard,
 )
 
 logger = logging.getLogger(__name__)
@@ -249,18 +253,90 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
 
     @admin_router.callback_query(F.data == "admin_workouts")
     async def cb_admin_workouts(callback: CallbackQuery):
-        """Workouts panel placeholder."""
+        """Show workouts categories panel."""
         await callback.answer()
         try:
             await callback.message.edit_text(
-                "🏋️ Тренировки\n\n(В разработке)\n\nВыберите действие:",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                "🏋️ Тренировки\n\nВыберите категорию:",
+                reply_markup=admin_workouts_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
-                "🏋️ Тренировки\n\n(В разработке)",
-                reply_markup=admin_back_to_athletes_keyboard(),
+                "🏋️ Тренировки\n\nВыберите категорию:",
+                reply_markup=admin_workouts_keyboard(),
             )
+
+    @admin_router.callback_query(F.data == "admin_back_workouts")
+    async def cb_admin_back_workouts(callback: CallbackQuery):
+        """Return to workouts menu from sub-sections."""
+        await callback.answer()
+        try:
+            await callback.message.edit_text(
+                "🏋️ Тренировки\n\nВыберите категорию:",
+                reply_markup=admin_workouts_keyboard(),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                "🏋️ Тренировки\n\nВыберите категорию:",
+                reply_markup=admin_workouts_keyboard(),
+            )
+
+    @admin_router.callback_query(F.data == "admin_workout_speed_power")
+    async def cb_admin_workout_speed_power(callback: CallbackQuery):
+        """Assign demo workout for speed/power category."""
+        await callback.answer()
+        # This connects to existing demo workout flow
+        # For now, show message that admin needs to select athlete first
+        try:
+            await callback.message.edit_text(
+                "⚡ Скорость и мощность\n\n"
+                "Сначала выберите спортсмена из списка:\n"
+                "👥 Спортсмены → 📋 Список спортсменов",
+                reply_markup=admin_back_to_workouts_keyboard(),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                "⚡ Скорость и мощность\n\n"
+                "Сначала выберите спортсмена из списка:\n"
+                "👥 Спортсмены → 📋 Список спортсменов",
+                reply_markup=admin_back_to_workouts_keyboard(),
+            )
+
+    @admin_router.callback_query(F.data == "admin_workout_placeholder")
+    async def cb_admin_workout_placeholder(callback: CallbackQuery):
+        """Show placeholder for workout categories in development."""
+        await callback.answer()
+        try:
+            await callback.message.edit_text(
+                "🚧 Раздел в разработке\n\n"
+                "Функционал будет добавлен в следующей версии.",
+                reply_markup=admin_back_to_workouts_keyboard(),
+            )
+        except TelegramBadRequest:
+            await callback.message.answer(
+                "🚧 Раздел в разработке\n\n"
+                "Функционал будет добавлен в следующей версии.",
+                reply_markup=admin_back_to_workouts_keyboard(),
+            )
+
+    @admin_router.callback_query(F.data == "admin_weekly_plan")
+    async def cb_admin_weekly_plan(callback: CallbackQuery):
+        """Show weekly plan placeholder foundation."""
+        await callback.answer()
+        text = (
+            "📅 Система недельного планирования\n\n"
+            "Будущий функционал:\n"
+            "• расписание недели\n"
+            "• матчи\n"
+            "• командные тренировки\n"
+            "• индивидуальные тренировки\n"
+            "• school/time management\n"
+            "• intake planner"
+        )
+        try:
+            await callback.message.edit_text(text, reply_markup=admin_weekly_plan_keyboard())
+        except TelegramBadRequest:
+            await callback.message.answer(text, reply_markup=admin_weekly_plan_keyboard())
 
     @admin_router.callback_query(F.data == "admin_help_requests")
     async def cb_admin_help_requests(callback: CallbackQuery):
@@ -298,7 +374,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_close_help_"))
     async def cb_admin_close_help(callback: CallbackQuery):
-        """Close a help request."""
+        """Close a help request and return to main panel."""
         await callback.answer()
         request_id = int(callback.data.replace("admin_close_help_", ""))
         
@@ -448,7 +524,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
                 f"👤 ID: {athlete.telegram_id}\n"
                 f"📅 Подписка: {days} дней\n"
                 f"⏳ До: {athlete.subscription_expires_at.strftime('%Y-%m-%d')}",
-                reply_markup=admin_athletes_menu_keyboard(),
+                reply_markup=admin_athlete_success_keyboard(athlete.telegram_id),
             )
             logger.info(f"Athlete added via admin UI: ID={telegram_id}, days={days}")
         
