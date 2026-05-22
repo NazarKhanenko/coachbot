@@ -131,7 +131,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
 
     @admin_router.callback_query(F.data == "admin_list_athletes")
     async def cb_admin_list_athletes(callback: CallbackQuery, athlete_service: AthleteService):
-        """Show list of athletes with actions."""
+        """Show list of athletes with compact card-style buttons."""
         await callback.answer()
         
         athletes = athlete_service.list_athletes()
@@ -149,24 +149,29 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
                 )
             return
         
-        # Build compact athlete list with individual action buttons
-        lines = ["📋 Список спортсменов:", ""]
+        # Build compact athlete list with clickable cards
+        lines = ["👥 Список спортсменов:", ""]
         keyboard_buttons = []
         
         for athlete in athletes:
             status_icon = "🟢" if athlete.active and athlete.is_subscription_valid() else "🔴"
             days = athlete.days_remaining()
-            lines.append(f"{status_icon} {athlete.telegram_id}")
-            lines.append(f"⏳ {days} дней")
-            lines.append("")
+            username = getattr(athlete, 'username', f'user_{athlete.telegram_id}')
             
-            # Add action buttons for this athlete
-            keyboard_buttons.append([InlineKeyboardButton(text=f"🏋️ Тренировка | {athlete.telegram_id}", callback_data=f"admin_athlete_workout_{athlete.telegram_id}")])
-            keyboard_buttons.append([InlineKeyboardButton(text=f"⏸ Заморозить | {athlete.telegram_id}", callback_data=f"admin_athlete_freeze_{athlete.telegram_id}")])
-            keyboard_buttons.append([InlineKeyboardButton(text=f"❌ Удалить | {athlete.telegram_id}", callback_data=f"admin_athlete_remove_{athlete.telegram_id}")])
+            # Compact card format: @username • 29 дней
+            if days is not None:
+                card_text = f"{status_icon} @{username} • {days} дн."
+            else:
+                card_text = f"{status_icon} @{username} • frozen"
+            
+            lines.append(card_text)
+            
+            # Add action button for this athlete (compact inline button)
+            keyboard_buttons.append([InlineKeyboardButton(text=f"👤 {athlete.telegram_id}", callback_data=f"admin_athlete_profile_{athlete.telegram_id}")])
         
-        # Add back button
-        keyboard_buttons.append([InlineKeyboardButton(text="⬅️ В меню спортсменов", callback_data="admin_back_athletes")])
+        # Add navigation buttons
+        keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")])
+        keyboard_buttons.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")])
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
         
@@ -174,6 +179,84 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             await callback.message.edit_text("\n".join(lines), reply_markup=keyboard)
         except TelegramBadRequest:
             await callback.message.answer("\n".join(lines), reply_markup=keyboard)
+
+    @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_profile_"))
+    async def cb_admin_athlete_profile(callback: CallbackQuery, athlete_service: AthleteService):
+        """Show athlete profile page with actions."""
+        await callback.answer()
+        athlete_id = int(callback.data.replace("admin_athlete_profile_", ""))
+        
+        athlete = athlete_service.get_athlete(athlete_id)
+        if not athlete:
+            try:
+                await callback.message.edit_text(
+                    f"❌ Спортсмен {athlete_id} не найден.",
+                    reply_markup=admin_back_to_main_keyboard(),
+                )
+            except TelegramBadRequest:
+                await callback.message.answer(
+                    f"❌ Спортсмен {athlete_id} не найден.",
+                    reply_markup=admin_back_to_main_keyboard(),
+                )
+            return
+        
+        # Determine status
+        is_active = athlete.active and athlete.is_subscription_valid()
+        is_frozen = not athlete.active
+        days = athlete.days_remaining()
+        expires = athlete.subscription_expires_at.strftime("%Y-%m-%d") if athlete.subscription_expires_at else "N/A"
+        username = getattr(athlete, 'username', f'user_{athlete_id}')
+        
+        status_text = "🟢 Активен" if is_active else ("⏸ Заморожен" if is_frozen else "🔴 Неактивен")
+        
+        text = (
+            f"👤 Профиль спортсмена\n\n"
+            f"ID: {athlete.telegram_id}\n"
+            f"Username: @{username}\n"
+            f"Статус: {status_text}\n"
+            f"Дней осталось: {days}\n"
+            f"Истекает: {expires}"
+        )
+        
+        try:
+            await callback.message.edit_text(text, reply_markup=admin_athlete_profile_keyboard(athlete_id, is_frozen))
+        except TelegramBadRequest:
+            await callback.message.answer(text, reply_markup=admin_athlete_profile_keyboard(athlete_id, is_frozen))
+
+    @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_toggle_freeze_"))
+    async def cb_admin_athlete_toggle_freeze(callback: CallbackQuery, athlete_service: AthleteService):
+        """Toggle freeze/unfreeze state for an athlete."""
+        await callback.answer()
+        athlete_id = int(callback.data.replace("admin_athlete_toggle_freeze_", ""))
+        
+        athlete = athlete_service.get_athlete(athlete_id)
+        if not athlete:
+            try:
+                await callback.message.edit_text(
+                    f"❌ Спортсмен {athlete_id} не найден.",
+                    reply_markup=admin_back_to_main_keyboard(),
+                )
+            except TelegramBadRequest:
+                await callback.message.answer(
+                    f"❌ Спортсмен {athlete_id} не найден.",
+                    reply_markup=admin_back_to_main_keyboard(),
+                )
+            return
+        
+        # Toggle active state
+        athlete.active = not athlete.active
+        new_status = "разморожен" if athlete.active else "заморожен"
+        
+        # Reload athlete to get fresh state
+        athlete = athlete_service.get_athlete(athlete_id)
+        is_frozen = not athlete.active
+        
+        text = f"✅ Спортсмен {athlete_id} {new_status}."
+        
+        try:
+            await callback.message.edit_text(text, reply_markup=admin_athlete_profile_keyboard(athlete_id, is_frozen))
+        except TelegramBadRequest:
+            await callback.message.answer(text, reply_markup=admin_athlete_profile_keyboard(athlete_id, is_frozen))
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_workout_"))
     async def cb_admin_athlete_workout(callback: CallbackQuery):
@@ -194,12 +277,16 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_assign_demo_"))
     async def cb_admin_assign_demo(callback: CallbackQuery, athlete_service: AthleteService, workout_service: WorkoutService):
-        """Assign demo workout to athlete."""
+        """Assign demo workout to athlete with DEBUG logging."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_assign_demo_", ""))
         
+        logger.debug(f"[DEBUG] Demo workout callback received for athlete_id={athlete_id}")
+        
         # Check if athlete exists and is active
         athlete = athlete_service.get_athlete(athlete_id)
+        logger.debug(f"[DEBUG] Athlete lookup result: {athlete}")
+        
         if not athlete:
             try:
                 await callback.message.edit_text(f"❌ Спортсмен {athlete_id} не найден.", reply_markup=admin_back_to_main_keyboard())
@@ -216,21 +303,20 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         
         # Create demo workout
         session = workout_service.create_demo_workout(athlete_id=athlete_id)
+        logger.debug(f"[DEBUG] Workout creation result: session_id={session.id if session else None}, title={session.title if session else 'N/A'}")
         
         try:
             await callback.message.edit_text(
                 f"✅ Тренировка выдана спортсмену {athlete_id}\n\n"
-                f"📋 Название: {session.title}\n"
-                f"🏋️ Упражнений: {len(session.exercises)}\n\n"
-                f"Спортсмен может начать с /workout",
+                f"👤 @{getattr(athlete, 'username', f'user_{athlete_id}')}\n"
+                f"🏋️ {session.title}",
                 reply_markup=admin_back_to_main_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 f"✅ Тренировка выдана спортсмену {athlete_id}\n\n"
-                f"📋 Название: {session.title}\n"
-                f"🏋️ Упражнений: {len(session.exercises)}\n\n"
-                f"Спортсмен может начать с /workout",
+                f"👤 @{getattr(athlete, 'username', f'user_{athlete_id}')}\n"
+                f"🏋️ {session.title}",
                 reply_markup=admin_back_to_main_keyboard(),
             )
         
@@ -238,7 +324,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_freeze_"))
     async def cb_admin_athlete_freeze(callback: CallbackQuery, athlete_service: AthleteService):
-        """Freeze (deactivate) an athlete."""
+        """Freeze (deactivate) an athlete and refresh UI."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_athlete_freeze_", ""))
         
@@ -246,34 +332,39 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         if athlete:
             athlete.active = False
         
+        # Reload athlete to get fresh state
+        athlete = athlete_service.get_athlete(athlete_id)
+        is_frozen = not athlete.active if athlete else True
+        
         try:
             await callback.message.edit_text(
                 f"⏸ Спортсмен {athlete_id} заморожен.",
-                reply_markup=admin_back_to_main_keyboard(),
+                reply_markup=admin_athlete_profile_keyboard(athlete_id, is_frozen),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 f"⏸ Спортсмен {athlete_id} заморожен.",
-                reply_markup=admin_back_to_main_keyboard(),
+                reply_markup=admin_athlete_profile_keyboard(athlete_id, is_frozen),
             )
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_remove_"))
     async def cb_admin_athlete_remove(callback: CallbackQuery, athlete_service: AthleteService):
-        """Remove (deactivate) an athlete."""
+        """Remove (deactivate) an athlete and return to list."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_athlete_remove_", ""))
         
         athlete_service.remove_athlete(athlete_id)
         
+        # Return to athletes list which will now show updated list
         try:
             await callback.message.edit_text(
                 f"❌ Спортсмен {athlete_id} удалён.",
-                reply_markup=admin_back_to_main_keyboard(),
+                reply_markup=admin_back_to_athletes_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
                 f"❌ Спортсмен {athlete_id} удалён.",
-                reply_markup=admin_back_to_main_keyboard(),
+                reply_markup=admin_back_to_athletes_keyboard(),
             )
 
     @admin_router.callback_query(F.data == "admin_workouts")
