@@ -7,6 +7,73 @@ Provides reusable keyboard constructors for consistent UI.
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
+def admin_main_keyboard() -> InlineKeyboardMarkup:
+    """Build main admin panel keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="👥 Спортсмены", callback_data="admin_athletes")],
+        [InlineKeyboardButton(text="🏋️ Тренировки", callback_data="admin_workouts")],
+        [InlineKeyboardButton(text="📨 Запросы помощи", callback_data="admin_help_requests")],
+        [InlineKeyboardButton(text="⚙️ Система", callback_data="admin_system")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_athletes_menu_keyboard() -> InlineKeyboardMarkup:
+    """Build athletes management menu keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="➕ Добавить спортсмена", callback_data="admin_add_athlete")],
+        [InlineKeyboardButton(text="📋 Список спортсменов", callback_data="admin_list_athletes")],
+        [InlineKeyboardButton(text="🔍 Найти спортсмена", callback_data="admin_find_athlete")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_back_to_athletes_keyboard() -> InlineKeyboardMarkup:
+    """Build back to athletes menu keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="⬅️ В меню спортсменов", callback_data="admin_back_athletes")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_athlete_actions_keyboard(athlete_id: int) -> InlineKeyboardMarkup:
+    """Build actions keyboard for a specific athlete."""
+    buttons = [
+        [InlineKeyboardButton(text="🏋️ Тренировка", callback_data=f"admin_athlete_workout_{athlete_id}")],
+        [InlineKeyboardButton(text="⏸ Заморозить", callback_data=f"admin_athlete_freeze_{athlete_id}")],
+        [InlineKeyboardButton(text="❌ Удалить", callback_data=f"admin_athlete_remove_{athlete_id}")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_workout_assign_keyboard(athlete_id: int) -> InlineKeyboardMarkup:
+    """Build workout assignment keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="➕ Выдать демо-тренировку", callback_data=f"admin_assign_demo_{athlete_id}")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_help_request_keyboard(request_id: int) -> InlineKeyboardMarkup:
+    """Build keyboard for help request actions."""
+    buttons = [
+        [InlineKeyboardButton(text="✅ Закрыть запрос", callback_data=f"admin_close_help_{request_id}")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_system_keyboard() -> InlineKeyboardMarkup:
+    """Build system panel keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_system_refresh")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def workout_session_keyboard(session_id: str, current_index: int, total_exercises: int) -> InlineKeyboardMarkup:
     """Build navigation keyboard for workout session exercises (MVP)."""
     buttons = []
