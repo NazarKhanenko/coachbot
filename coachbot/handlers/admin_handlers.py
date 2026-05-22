@@ -1,6 +1,7 @@
 """Admin-only command handlers for athlete management with inline button UI."""
 import logging
-from aiogram import F, Router
+from typing import Any, Callable, Dict
+from aiogram import F, Router, BaseMiddleware
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest
@@ -39,13 +40,35 @@ _help_requests: dict[int, dict] = {}
 _help_request_counter = 0
 
 
+class ServiceInjectionMiddleware(BaseMiddleware):
+    """Inject services into handler_data for aiogram 3 compatibility."""
+    
+    def __init__(self, athlete_service: AthleteService, workout_service: WorkoutService):
+        self.athlete_service = athlete_service
+        self.workout_service = workout_service
+    
+    async def __call__(
+        self,
+        handler: Callable,
+        event: Message | CallbackQuery,
+        data: Dict[str, Any]
+    ) -> Any:
+        # Inject services into handler_data
+        data['athlete_service'] = self.athlete_service
+        data['workout_service'] = self.workout_service
+        return await handler(event, data)
+
+
 def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_service: WorkoutService):
     """Register admin handlers with the router."""
     logger.info("[ADMIN] Setting up admin handlers with inline UI")
 
-    # Store services in router data for callback handlers
+    # Store services in dispatcher workflow_data
     dp["athlete_service"] = athlete_service
     dp["workout_service"] = workout_service
+    
+    # Register middleware for service injection
+    admin_router.middleware(ServiceInjectionMiddleware(athlete_service, workout_service))
 
     @admin_router.message(Command("start"))
     async def cmd_start_admin(message: Message):
@@ -102,10 +125,9 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             await callback.message.answer("👥 Управление спортсменами", reply_markup=admin_athletes_menu_keyboard())
 
     @admin_router.callback_query(F.data == "admin_list_athletes")
-    async def cb_admin_list_athletes(callback: CallbackQuery):
+    async def cb_admin_list_athletes(callback: CallbackQuery, athlete_service: AthleteService):
         """Show list of athletes with actions."""
         await callback.answer()
-        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         athletes = athlete_service.list_athletes()
         
@@ -166,12 +188,10 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             )
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_assign_demo_"))
-    async def cb_admin_assign_demo(callback: CallbackQuery):
+    async def cb_admin_assign_demo(callback: CallbackQuery, athlete_service: AthleteService, workout_service: WorkoutService):
         """Assign demo workout to athlete."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_assign_demo_", ""))
-        workout_service: WorkoutService = callback.router.data["workout_service"]
-        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         # Check if athlete exists and is active
         athlete = athlete_service.get_athlete(athlete_id)
@@ -212,11 +232,10 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         logger.info(f"Demo workout assigned to athlete {athlete_id} by admin")
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_freeze_"))
-    async def cb_admin_athlete_freeze(callback: CallbackQuery):
+    async def cb_admin_athlete_freeze(callback: CallbackQuery, athlete_service: AthleteService):
         """Freeze (deactivate) an athlete."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_athlete_freeze_", ""))
-        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         athlete = athlete_service.get_athlete(athlete_id)
         if athlete:
@@ -234,11 +253,10 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             )
 
     @admin_router.callback_query(lambda c: c.data.startswith("admin_athlete_remove_"))
-    async def cb_admin_athlete_remove(callback: CallbackQuery):
+    async def cb_admin_athlete_remove(callback: CallbackQuery, athlete_service: AthleteService):
         """Remove (deactivate) an athlete."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_athlete_remove_", ""))
-        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         athlete_service.remove_athlete(athlete_id)
         
@@ -426,11 +444,9 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             )
 
     @admin_router.callback_query(F.data == "admin_system")
-    async def cb_admin_system(callback: CallbackQuery):
+    async def cb_admin_system(callback: CallbackQuery, athlete_service: AthleteService, workout_service: WorkoutService):
         """Show system panel with stats."""
         await callback.answer()
-        athlete_service: AthleteService = callback.router.data["athlete_service"]
-        workout_service: WorkoutService = callback.router.data["workout_service"]
         
         athletes = athlete_service.list_athletes()
         active_count = sum(1 for a in athletes if a.active and a.is_subscription_valid())
@@ -451,11 +467,9 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             await callback.message.answer(text, reply_markup=admin_system_keyboard())
 
     @admin_router.callback_query(F.data == "admin_system_refresh")
-    async def cb_admin_system_refresh(callback: CallbackQuery):
+    async def cb_admin_system_refresh(callback: CallbackQuery, athlete_service: AthleteService, workout_service: WorkoutService):
         """Refresh system panel."""
         await callback.answer()
-        athlete_service: AthleteService = callback.router.data["athlete_service"]
-        workout_service: WorkoutService = callback.router.data["workout_service"]
         
         athletes = athlete_service.list_athletes()
         active_count = sum(1 for a in athletes if a.active and a.is_subscription_valid())
@@ -496,7 +510,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         await message.answer("❌ Отменено.", reply_markup=admin_athletes_menu_keyboard())
 
     @admin_router.message(lambda m: m.from_user.id == config.ADMIN_ID)
-    async def handle_admin_input(message: Message):
+    async def handle_admin_input(message: Message, athlete_service: AthleteService, workout_service: WorkoutService):
         """Handle admin text input for multi-step flows."""
         admin_id = message.from_user.id
         
@@ -505,9 +519,6 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         
         state_info = _admin_state[admin_id]
         state = state_info.get("state")
-        
-        athlete_service: AthleteService = message.router.data["athlete_service"]
-        workout_service: WorkoutService = message.router.data["workout_service"]
         
         if state == "waiting_athlete_id":
             try:
