@@ -1,1 +1,39 @@
-Nothing to output - the file changes contain only source code (.py file) and no build artifacts, dependencies, or temporary files that need to be ignored.
+```
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependencies
+.venv/
+venv/
+env/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
+```
