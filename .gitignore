@@ -5,24 +5,11 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Dependencies
-.venv/
-venv/
-env/
-node_modules/
-
-# Build artifacts
-dist/
-build/
-*.egg-info/
-
-# Logs and temporary files
+# Logs and temp files
 *.log
 *.tmp
-*.swp
-*.swo
 
-# Environment variables
+# Environment
 .env
 .env.local
 *.env.*
@@ -30,10 +17,23 @@ build/
 # Editors
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Dependencies
+.venv/
+venv/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
 ```

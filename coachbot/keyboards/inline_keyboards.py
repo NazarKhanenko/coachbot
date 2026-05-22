@@ -32,17 +32,34 @@ def admin_athletes_menu_keyboard() -> InlineKeyboardMarkup:
 def admin_back_to_athletes_keyboard() -> InlineKeyboardMarkup:
     """Build back to athletes menu keyboard."""
     buttons = [
-        [InlineKeyboardButton(text="⬅️ В меню спортсменов", callback_data="admin_back_athletes")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def admin_athlete_actions_keyboard(athlete_id: int) -> InlineKeyboardMarkup:
+def admin_athlete_actions_keyboard(athlete_id: int, is_frozen: bool = False) -> InlineKeyboardMarkup:
     """Build actions keyboard for a specific athlete."""
+    freeze_text = "▶️ Разморозить" if is_frozen else "⏸ Заморозить"
     buttons = [
-        [InlineKeyboardButton(text="🏋️ Тренировка", callback_data=f"admin_athlete_workout_{athlete_id}")],
-        [InlineKeyboardButton(text="⏸ Заморозить", callback_data=f"admin_athlete_freeze_{athlete_id}")],
+        [InlineKeyboardButton(text="🏋️ Тренировки", callback_data=f"admin_athlete_workout_{athlete_id}")],
+        [InlineKeyboardButton(text=freeze_text, callback_data=f"admin_athlete_freeze_{athlete_id}")],
         [InlineKeyboardButton(text="❌ Удалить", callback_data=f"admin_athlete_remove_{athlete_id}")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_athlete_profile_keyboard(athlete_id: int, is_frozen: bool = False) -> InlineKeyboardMarkup:
+    """Build profile page keyboard for a specific athlete."""
+    freeze_text = "▶️ Разморозить" if is_frozen else "⏸ Заморозить"
+    buttons = [
+        [InlineKeyboardButton(text="🏋️ Тренировки", callback_data=f"admin_athlete_workout_{athlete_id}")],
+        [InlineKeyboardButton(text=freeze_text, callback_data=f"admin_athlete_toggle_freeze_{athlete_id}")],
+        [InlineKeyboardButton(text="❌ Удалить", callback_data=f"admin_athlete_remove_{athlete_id}")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -52,6 +69,7 @@ def admin_workout_assign_keyboard(athlete_id: int) -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text="➕ Выдать демо-тренировку", callback_data=f"admin_assign_demo_{athlete_id}")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -104,12 +122,13 @@ def admin_workouts_keyboard() -> InlineKeyboardMarkup:
 def admin_warmup_keyboard() -> InlineKeyboardMarkup:
     """Build warmup exercises placeholder keyboard."""
     buttons = [
-        [InlineKeyboardButton(text="1. Jumping Jacks", callback_data="admin_ex_placeholder")],
-        [InlineKeyboardButton(text="2. High Knees", callback_data="admin_ex_placeholder")],
-        [InlineKeyboardButton(text="3. Butt Kicks", callback_data="admin_ex_placeholder")],
-        [InlineKeyboardButton(text="4. Leg Swings", callback_data="admin_ex_placeholder")],
-        [InlineKeyboardButton(text="5. Arm Circles", callback_data="admin_ex_placeholder")],
-        [InlineKeyboardButton(text="⬅️ К тренировкам", callback_data="admin_back_workouts")],
+        [InlineKeyboardButton(text="Jumping Jacks", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="High Knees", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="Butt Kicks", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="Leg Swings", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="Arm Circles", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_workouts")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -117,7 +136,8 @@ def admin_warmup_keyboard() -> InlineKeyboardMarkup:
 def admin_exercise_placeholder_keyboard() -> InlineKeyboardMarkup:
     """Build back keyboard for exercise placeholder."""
     buttons = [
-        [InlineKeyboardButton(text="⬅️ К тренировкам", callback_data="admin_back_workouts")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_workouts")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -126,6 +146,7 @@ def admin_weekly_plan_keyboard() -> InlineKeyboardMarkup:
     """Build weekly plan placeholder keyboard."""
     buttons = [
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_workouts")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -133,7 +154,8 @@ def admin_weekly_plan_keyboard() -> InlineKeyboardMarkup:
 def admin_back_to_workouts_keyboard() -> InlineKeyboardMarkup:
     """Build back to workouts menu keyboard."""
     buttons = [
-        [InlineKeyboardButton(text="⬅️ К тренировкам", callback_data="admin_back_workouts")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_workouts")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -142,7 +164,8 @@ def admin_athlete_success_keyboard(athlete_id: int) -> InlineKeyboardMarkup:
     """Build success keyboard after adding athlete."""
     buttons = [
         [InlineKeyboardButton(text="🏋️ Выдать тренировку", callback_data=f"admin_athlete_workout_{athlete_id}")],
-        [InlineKeyboardButton(text="⬅️ В меню спортсменов", callback_data="admin_back_athletes")],
+        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_athletes")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="admin_back_main")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
