@@ -65,6 +65,14 @@ def admin_help_request_keyboard(request_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def admin_back_to_main_keyboard() -> InlineKeyboardMarkup:
+    """Build back to main panel keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="⬅️ В главное меню", callback_data="admin_back_main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def admin_system_keyboard() -> InlineKeyboardMarkup:
     """Build system panel keyboard."""
     buttons = [
@@ -77,17 +85,39 @@ def admin_system_keyboard() -> InlineKeyboardMarkup:
 def admin_workouts_keyboard() -> InlineKeyboardMarkup:
     """Build workouts categories keyboard."""
     buttons = [
+        [InlineKeyboardButton(text="🔥 Разминка", callback_data="admin_workout_warmup")],
         [InlineKeyboardButton(text="⚡ Скорость и мощность", callback_data="admin_workout_speed_power")],
         [InlineKeyboardButton(text="🏃 Спринт", callback_data="admin_workout_placeholder")],
         [InlineKeyboardButton(text="🦘 Плиометрика", callback_data="admin_workout_placeholder")],
         [InlineKeyboardButton(text="💪 Верх тела", callback_data="admin_workout_placeholder")],
         [InlineKeyboardButton(text="🦵 Низ тела", callback_data="admin_workout_placeholder")],
-        [InlineKeyboardButton(text="⚽ Индивидуально с мячом", callback_data="admin_workout_placeholder")],
+        [InlineKeyboardButton(text="⚽ Работа с мячом", callback_data="admin_workout_placeholder")],
         [InlineKeyboardButton(text="🥗 Питание", callback_data="admin_workout_placeholder")],
         [InlineKeyboardButton(text="😴 Сон", callback_data="admin_workout_placeholder")],
         [InlineKeyboardButton(text="🎯 Цели на матч", callback_data="admin_workout_placeholder")],
         [InlineKeyboardButton(text="📅 Недельный план", callback_data="admin_weekly_plan")],
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_back_main")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_warmup_keyboard() -> InlineKeyboardMarkup:
+    """Build warmup exercises placeholder keyboard."""
+    buttons = [
+        [InlineKeyboardButton(text="1. Jumping Jacks", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="2. High Knees", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="3. Butt Kicks", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="4. Leg Swings", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="5. Arm Circles", callback_data="admin_ex_placeholder")],
+        [InlineKeyboardButton(text="⬅️ К тренировкам", callback_data="admin_back_workouts")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_exercise_placeholder_keyboard() -> InlineKeyboardMarkup:
+    """Build back keyboard for exercise placeholder."""
+    buttons = [
+        [InlineKeyboardButton(text="⬅️ К тренировкам", callback_data="admin_back_workouts")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
