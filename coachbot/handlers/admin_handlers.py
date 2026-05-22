@@ -2,7 +2,7 @@
 import logging
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest
 
 from config import config
@@ -105,7 +105,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
     async def cb_admin_list_athletes(callback: CallbackQuery):
         """Show list of athletes with actions."""
         await callback.answer()
-        athlete_service: AthleteService = callback.bot.dispatcher["athlete_service"]
+        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         athletes = athlete_service.list_athletes()
         
@@ -141,7 +141,6 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         # Add back button
         keyboard_buttons.append([InlineKeyboardButton(text="⬅️ В меню спортсменов", callback_data="admin_back_athletes")])
         
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
         
         try:
@@ -171,8 +170,8 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         """Assign demo workout to athlete."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_assign_demo_", ""))
-        workout_service: WorkoutService = callback.bot.dispatcher["workout_service"]
-        athlete_service: AthleteService = callback.bot.dispatcher["athlete_service"]
+        workout_service: WorkoutService = callback.router.data["workout_service"]
+        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         # Check if athlete exists and is active
         athlete = athlete_service.get_athlete(athlete_id)
@@ -217,7 +216,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         """Freeze (deactivate) an athlete."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_athlete_freeze_", ""))
-        athlete_service: AthleteService = callback.bot.dispatcher["athlete_service"]
+        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         athlete = athlete_service.get_athlete(athlete_id)
         if athlete:
@@ -239,7 +238,7 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         """Remove (deactivate) an athlete."""
         await callback.answer()
         athlete_id = int(callback.data.replace("admin_athlete_remove_", ""))
-        athlete_service: AthleteService = callback.bot.dispatcher["athlete_service"]
+        athlete_service: AthleteService = callback.router.data["athlete_service"]
         
         athlete_service.remove_athlete(athlete_id)
         
@@ -290,24 +289,12 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         await callback.answer()
         try:
             await callback.message.edit_text(
-                "🔥 Разминка\n\n"
-                "Упражнения для разминки:\n"
-                "• Jumping Jacks\n"
-                "• High Knees\n"
-                "• Butt Kicks\n"
-                "• Leg Swings\n"
-                "• Arm Circles",
+                "🔥 Разминка",
                 reply_markup=admin_warmup_keyboard(),
             )
         except TelegramBadRequest:
             await callback.message.answer(
-                "🔥 Разминка\n\n"
-                "Упражнения для разминки:\n"
-                "• Jumping Jacks\n"
-                "• High Knees\n"
-                "• Butt Kicks\n"
-                "• Leg Swings\n"
-                "• Arm Circles",
+                "🔥 Разминка",
                 reply_markup=admin_warmup_keyboard(),
             )
 
@@ -442,8 +429,8 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
     async def cb_admin_system(callback: CallbackQuery):
         """Show system panel with stats."""
         await callback.answer()
-        athlete_service: AthleteService = callback.bot.dispatcher["athlete_service"]
-        workout_service: WorkoutService = callback.bot.dispatcher["workout_service"]
+        athlete_service: AthleteService = callback.router.data["athlete_service"]
+        workout_service: WorkoutService = callback.router.data["workout_service"]
         
         athletes = athlete_service.list_athletes()
         active_count = sum(1 for a in athletes if a.active and a.is_subscription_valid())
@@ -467,8 +454,8 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
     async def cb_admin_system_refresh(callback: CallbackQuery):
         """Refresh system panel."""
         await callback.answer()
-        athlete_service: AthleteService = callback.bot.dispatcher["athlete_service"]
-        workout_service: WorkoutService = callback.bot.dispatcher["workout_service"]
+        athlete_service: AthleteService = callback.router.data["athlete_service"]
+        workout_service: WorkoutService = callback.router.data["workout_service"]
         
         athletes = athlete_service.list_athletes()
         active_count = sum(1 for a in athletes if a.active and a.is_subscription_valid())
@@ -519,8 +506,8 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
         state_info = _admin_state[admin_id]
         state = state_info.get("state")
         
-        athlete_service: AthleteService = message.bot.dispatcher["athlete_service"]
-        workout_service: WorkoutService = message.bot.dispatcher["workout_service"]
+        athlete_service: AthleteService = message.router.data["athlete_service"]
+        workout_service: WorkoutService = message.router.data["workout_service"]
         
         if state == "waiting_athlete_id":
             try:
@@ -596,7 +583,6 @@ def setup_admin_handlers(dp: Router, athlete_service: AthleteService, workout_se
             days = athlete.days_remaining()
             expires = athlete.subscription_expires_at.strftime("%Y-%m-%d") if athlete.subscription_expires_at else "N/A"
             
-            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🏋️ Тренировка", callback_data=f"admin_athlete_workout_{telegram_id}")],
                 [InlineKeyboardButton(text="⏸ Заморозить", callback_data=f"admin_athlete_freeze_{telegram_id}")],
